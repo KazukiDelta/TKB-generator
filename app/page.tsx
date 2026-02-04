@@ -184,6 +184,7 @@ export default function DashboardPage() {
   const [previewZoomScale, setPreviewZoomScale] = useState(1);
   const [userPreviewZoom, setUserPreviewZoom] = useState(false);
   const [zoomPercentInput, setZoomPercentInput] = useState("100");
+  const [cellTextScale, setCellTextScale] = useState(1);
 
   const tableRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -259,6 +260,11 @@ export default function DashboardPage() {
       }
       if (typeof obj.zoomPercentInput === "string")
         setZoomPercentInput(obj.zoomPercentInput);
+      if (
+        typeof obj.cellTextScale === "number" &&
+        Number.isFinite(obj.cellTextScale)
+      )
+        setCellTextScale(clamp(obj.cellTextScale, 0.85, 1.5));
     } catch {
       // ignore
     } finally {
@@ -281,6 +287,7 @@ export default function DashboardPage() {
       userPreviewZoom,
       previewZoomScale,
       zoomPercentInput,
+      cellTextScale,
     };
     try {
       window.localStorage.setItem(
@@ -302,6 +309,7 @@ export default function DashboardPage() {
     userPreviewZoom,
     previewZoomScale,
     zoomPercentInput,
+    cellTextScale,
   ]);
 
   useLayoutEffect(() => {
@@ -547,14 +555,82 @@ export default function DashboardPage() {
         type: "activity",
       };
     }
-    const match1 = /^([^-]+)\s*-\s*(.+)$/.exec(text);
-    if (match1) {
+    const dashSep = /^(.+?)(?:\s*[–-]\s*)(.+)$/.exec(text);
+    if (dashSep) {
+      const left = dashSep[1].trim();
+      const right = dashSep[2].trim();
+      const hasSpacesAroundDash = /\s[–-]\s/.test(text);
+      const rightLooksLikeTeacher = /[\s,]/.test(right);
+      if (hasSpacesAroundDash || rightLooksLikeTeacher) {
+        return {
+          subject: left,
+          teacher: right,
+          originalText: text,
+          type: "main",
+        };
+      }
+    }
+    const codeDashDash = /^([A-ZĐ]{2,6})-([A-ZĐ]{2,5})-(.+)$/.exec(text);
+    if (codeDashDash) {
       return {
-        subject: match1[1].trim(),
-        teacher: match1[2].trim(),
+        subject: `${codeDashDash[1].trim()}-${codeDashDash[2].trim()}`,
+        teacher: codeDashDash[3]
+          .split("-")
+          .map((p) => p.trim())
+          .filter(Boolean)
+          .join(", "),
         originalText: text,
         type: "main",
       };
+    }
+    // Compact "Môn-GV" form: keep everything before the LAST "-" as the subject.
+    // Examples: "Ngữ văn-Quỳnh.T", "Lịch sử-Nương", "GDKT-PL-Trí".
+    if (text.includes("-")) {
+      const parts = text
+        .split("-")
+        .map((p) => p.trim())
+        .filter(Boolean);
+      if (parts.length >= 2) {
+        const teacherCandidate = parts[parts.length - 1] ?? "";
+        // If the first token is an all-caps subject code (e.g. "GDTC-Quyên-Thal-Vân.L-Phương"),
+        // treat the rest as one or more teachers.
+        const firstIsCode = /^[A-Z\u0110]{2,6}$/.test(parts[0] ?? "");
+        if (firstIsCode && parts.length >= 3) {
+          const secondIsCode = /^[A-Z\u0110]{1,5}$/.test(parts[1] ?? "");
+          const subjectPartsCount = secondIsCode ? 2 : 1;
+          const subjectCandidate = parts.slice(0, subjectPartsCount).join("-");
+          const teacherCandidate = parts.slice(subjectPartsCount).join(", ");
+          if (subjectCandidate && teacherCandidate) {
+            return {
+              subject: subjectCandidate,
+              teacher: teacherCandidate,
+              originalText: text,
+              type: "main",
+            };
+          }
+        }
+
+        const subjectCandidate = parts.slice(0, -1).join("-");
+        const teacherLooksLike =
+          /[a-zà-ỹ.]/.test(teacherCandidate) || /[\s,]/.test(teacherCandidate);
+        const teacherLooksLikeRobust =
+          /[A-Za-z]/.test(teacherCandidate) ||
+          /[^\x00-\x7F]/.test(teacherCandidate) ||
+          /[.,\s]/.test(teacherCandidate);
+        const isShortCode = /^[A-Z]{1,3}$/.test(teacherCandidate);
+        if (
+          subjectCandidate &&
+          (teacherLooksLike || teacherLooksLikeRobust) &&
+          !isShortCode
+        ) {
+          return {
+            subject: subjectCandidate,
+            teacher: teacherCandidate,
+            originalText: text,
+            type: "main",
+          };
+        }
+      }
     }
     const match2 = /^(.+)\((.+)\)$/.exec(text);
     if (match2) {
@@ -590,7 +666,8 @@ export default function DashboardPage() {
           new Promise<HTMLImageElement>((resolve, reject) => {
             const img = new window.Image();
             img.onload = () => resolve(img);
-            img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+            img.onerror = () =>
+              reject(new Error(`Failed to load image: ${src}`));
             img.src = src;
           });
 
@@ -805,7 +882,14 @@ export default function DashboardPage() {
             const drawY = stickerY + (stickerSize - drawH) / 2;
 
             ctx.save();
-            drawRoundedRect(ctx, stickerX, stickerY, stickerSize, stickerSize, 20);
+            drawRoundedRect(
+              ctx,
+              stickerX,
+              stickerY,
+              stickerSize,
+              stickerSize,
+              20,
+            );
             ctx.clip();
             ctx.globalAlpha = 0.92;
             ctx.drawImage(stickerImg, drawX, drawY, drawW, drawH);
@@ -1398,6 +1482,30 @@ export default function DashboardPage() {
                           onClick={() => setShowSticker(!showSticker)}
                           icon={<Layers className="w-3 h-3" />}
                         />
+                        <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-xs font-bold text-white/70">
+                              Cỡ chữ môn/GV
+                            </span>
+                            <span className="text-[13px] font-mono text-white/60">
+                              {Math.round(cellTextScale * 100)}%
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min={0.85}
+                            max={1.4}
+                            step={0.05}
+                            value={cellTextScale}
+                            onChange={(e) =>
+                              setCellTextScale(
+                                clamp(Number(e.target.value), 0.85, 1.4),
+                              )
+                            }
+                            className="mt-2 w-full accent-cyan-400"
+                            aria-label="Cell text scale"
+                          />
+                        </div>
                         {highlightNN2 && (
                           <motion.div
                             initial={{ opacity: 0, y: -10 }}
@@ -1705,13 +1813,13 @@ export default function DashboardPage() {
                                 {TIME_SLOTS.map((slot, i) => (
                                   <div
                                     key={i}
-                                    className={`h-[70px] flex flex-col items-end justify-center text-[11px] font-bold leading-tight pr-2 ${currentTheme.timeColor}`}
+                                    className={`h-[70px] flex flex-col items-end justify-center text-[13px] font-bold leading-tight pr-2 ${currentTheme.timeColor}`}
                                   >
-                                    <span className="text-[13px] leading-tight">
+                                    <span className="text-[11px] leading-tight">
                                       {slot.start}
                                     </span>
                                     <span className="text-[12px] opacity-80 leading-tight">
-                                      - {slot.end}
+                                      {slot.end}
                                     </span>
                                   </div>
                                 ))}
@@ -1797,14 +1905,22 @@ export default function DashboardPage() {
                                             {cell ? (
                                               <>
                                                 <span
-                                                  className={`font-bold text-xl leading-tight ${currentTheme.titleColor}`}
+                                                  className={`font-bold leading-tight ${currentTheme.titleColor}`}
+                                                  style={{
+                                                    fontSize: `${20 * cellTextScale}px`,
+                                                    lineHeight: 1.15,
+                                                  }}
                                                 >
                                                   {cell.subject}
                                                 </span>
                                                 {!removeTeacher &&
                                                   cell.teacher && (
                                                     <span
-                                                      className={`text-sm font-bold opacity-60 mt-1 px-2 py-0.5 rounded ${currentTheme.id === "light" ? "bg-black/5" : "bg-black/20"}`}
+                                                      className={`font-bold opacity-60 mt-1 px-2 py-0.5 rounded ${currentTheme.id === "light" ? "bg-black/5" : "bg-black/20"}`}
+                                                      style={{
+                                                        fontSize: `${14 * cellTextScale}px`,
+                                                        lineHeight: 1.1,
+                                                      }}
                                                     >
                                                       {cell.teacher}
                                                     </span>
