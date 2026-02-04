@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160" fill="none">
+  <defs>
+    <linearGradient id="g" x1="24" y1="24" x2="136" y2="136" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22D3EE"/>
+      <stop offset="1" stop-color="#A855F7"/>
+    </linearGradient>
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+  </defs>
+  <rect x="20" y="20" width="120" height="120" rx="28" fill="url(#g)" opacity="0.16"/>
+  <rect x="24" y="24" width="112" height="112" rx="26" stroke="url(#g)" opacity="0.35"/>
+  <g filter="url(#blur)" opacity="0.35">
+    <circle cx="55" cy="55" r="18" fill="#22D3EE"/>
+    <circle cx="110" cy="70" r="22" fill="#A855F7"/>
+  </g>
+  <g>
+    <circle cx="80" cy="80" r="32" stroke="url(#g)" stroke-width="10" stroke-linecap="round" stroke-dasharray="70 140">
+      <animateTransform attributeName="transform" type="rotate" from="0 80 80" to="360 80 80" dur="1.1s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+  <text x="80" y="124" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-family="system-ui, -apple-system, Segoe UI, Arial" font-weight="800" font-size="14" letter-spacing="2">
+    LOADING
+  </text>
+</svg>

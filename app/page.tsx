@@ -1,649 +1,1812 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useLayoutEffect, useRef, useState } from "react";
+import Image from "next/image";
 import * as XLSX from "xlsx";
-import html2canvas from "html2canvas";
 import {
-  Save,
   Upload,
+  LayoutDashboard,
   FileSpreadsheet,
-  Image as ImageIcon,
+  Download,
+  Eye,
+  EyeOff,
   Settings,
   RefreshCw,
+  Layers,
+  Check,
+  ChevronDown,
+  Sparkles,
+  Calendar,
+  Zap,
   Palette,
 } from "lucide-react";
 import { saveAs } from "file-saver";
+import { motion, AnimatePresence } from "framer-motion";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
-// --- Types ---
+// Utilities
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+// Types
 type ScheduleCell = {
   subject: string;
   teacher: string;
   originalText: string;
+  type: "main" | "nn2" | "activity" | "empty";
 };
 
-// Mảng 2 chiều: [Tiết (0-9)][Thứ (2-7, CN)]
-// Tiết 0-4: Sáng (Tiết 1-5), Tiết 5-9: Chiều (Tiết 1-5)
 type ScheduleMatrix = (ScheduleCell | null)[][];
+type SheetData = unknown[][];
 
+type ExportTheme = {
+  panelFill: string;
+  panelBorder: string;
+  textPrimary: string;
+  textMuted: string;
+  cellFill: string;
+  cellBorder: string;
+  cellEmptyFill: string;
+  cellEmptyBorder: string;
+};
+
+// Themes
 const THEMES = [
   {
-    name: "Hiện đại (Xanh dương)",
-    bg: "bg-blue-50",
-    header: "bg-blue-600 text-white",
-    border: "border-blue-200",
-    cell: "hover:bg-blue-100",
-    text: "text-blue-900",
+    id: "cyberpunk",
+    name: "Cyberpunk Neon",
+    exportBg: "#0f172a",
+    exportMesh:
+      "radial-gradient(1100px circle at 18% 12%, rgba(34,211,238,0.18), transparent 60%), radial-gradient(900px circle at 82% 28%, rgba(168,85,247,0.20), transparent 60%), radial-gradient(1000px circle at 50% 92%, rgba(236,72,153,0.14), transparent 60%), linear-gradient(180deg, rgba(2,6,23,0.15), rgba(2,6,23,0.92))",
+    previewColors: ["#9333ea", "#06b6d4"],
+    text: "text-white",
+    accent: "bg-cyan-500 text-black",
+    card_empty: "bg-slate-800/30 border-white/5",
+    card_filled: "bg-slate-800/80 border-white/10 hover:border-cyan-500/50",
+    highlight: "#F0ABFC",
+    panelBg: "bg-slate-900/80",
+    panelBorder: "border-white/10",
+    titleColor: "text-white",
+    dayColor: "text-white/80",
+    timeColor: "text-white/40",
+    sigColor: "text-white/40",
+    emptyDot: "bg-white/10",
+    divider: "border-white/10",
   },
   {
-    name: "Năng động (Cam)",
-    bg: "bg-orange-50",
-    header: "bg-orange-500 text-white",
-    border: "border-orange-200",
-    cell: "hover:bg-orange-100",
-    text: "text-orange-900",
+    id: "sunset",
+    name: "Sunset Bliss",
+    exportBg: "#2F0743",
+    exportMesh:
+      "radial-gradient(1000px circle at 18% 18%, rgba(255,0,153,0.18), transparent 58%), radial-gradient(950px circle at 78% 25%, rgba(255,106,0,0.18), transparent 60%), radial-gradient(1100px circle at 50% 92%, rgba(253,186,116,0.12), transparent 62%), linear-gradient(180deg, rgba(12,1,18,0.05), rgba(12,1,18,0.86))",
+    previewColors: ["#ff0099", "#ff6a00"],
+    text: "text-white",
+    accent: "bg-[#ff6a00] text-white",
+    card_empty: "bg-white/5 border-white/5",
+    card_filled: "bg-white/10 border-white/20 hover:border-pink-400/50",
+    highlight: "#FDBA74",
+    panelBg: "bg-[#2F0743]/90",
+    panelBorder: "border-white/15",
+    titleColor: "text-white",
+    dayColor: "text-white/80",
+    timeColor: "text-white/40",
+    sigColor: "text-white/40",
+    emptyDot: "bg-white/10",
+    divider: "border-white/15",
   },
   {
-    name: "Thiên nhiên (Xanh lá)",
-    bg: "bg-green-50",
-    header: "bg-emerald-600 text-white",
-    border: "border-emerald-200",
-    cell: "hover:bg-green-100",
-    text: "text-emerald-900",
+    id: "oceanic",
+    name: "Deep Ocean",
+    exportBg: "#0c1929",
+    exportMesh:
+      "radial-gradient(1100px circle at 18% 14%, rgba(20,184,166,0.16), transparent 60%), radial-gradient(1000px circle at 82% 26%, rgba(37,99,235,0.16), transparent 60%), radial-gradient(1100px circle at 50% 92%, rgba(99,102,241,0.12), transparent 62%), linear-gradient(180deg, rgba(2,6,23,0.10), rgba(2,6,23,0.90))",
+    previewColors: ["#2563eb", "#14b8a6"],
+    text: "text-blue-50",
+    accent: "bg-teal-400 text-slate-900",
+    card_empty: "bg-slate-800/30 border-blue-200/5",
+    card_filled: "bg-slate-700/50 border-blue-200/10 hover:border-teal-400/50",
+    highlight: "#5EEAD4",
+    panelBg: "bg-slate-900/85",
+    panelBorder: "border-blue-200/10",
+    titleColor: "text-blue-50",
+    dayColor: "text-blue-100/80",
+    timeColor: "text-blue-100/40",
+    sigColor: "text-blue-100/40",
+    emptyDot: "bg-blue-200/10",
+    divider: "border-blue-200/10",
   },
   {
-    name: "Tối giản (Xám)",
-    bg: "bg-gray-50",
-    header: "bg-gray-700 text-white",
-    border: "border-gray-300",
-    cell: "hover:bg-gray-200",
-    text: "text-gray-900",
-  },
-  {
-    name: "Nữ tính (Hồng)",
-    bg: "bg-pink-50",
-    header: "bg-pink-500 text-white",
-    border: "border-pink-200",
-    cell: "hover:bg-pink-100",
-    text: "text-pink-900",
+    id: "light",
+    name: "Light & Fresh",
+    exportBg: "#f0f4f8",
+    exportMesh:
+      "radial-gradient(900px circle at 18% 14%, rgba(99,102,241,0.22), transparent 60%), radial-gradient(900px circle at 82% 24%, rgba(244,114,182,0.22), transparent 60%), linear-gradient(180deg, rgba(255,255,255,0.92), rgba(240,244,248,1))",
+    previewColors: ["#6366f1", "#f472b6"],
+    text: "text-slate-700",
+    accent: "bg-indigo-500 text-white",
+    card_empty: "bg-white border-slate-200",
+    card_filled: "bg-white border-slate-300 hover:border-indigo-400 shadow-sm",
+    highlight: "#818cf8",
+    panelBg: "bg-white/95",
+    panelBorder: "border-slate-200",
+    titleColor: "text-slate-800",
+    dayColor: "text-slate-500",
+    timeColor: "text-slate-400",
+    sigColor: "text-slate-300",
+    emptyDot: "bg-slate-200",
+    divider: "border-slate-200",
   },
 ];
 
-export default function TkbGenerator() {
-  // State quản lý dữ liệu
+const PREVIEW_BASE_WIDTH = 1920;
+const PREVIEW_BASE_HEIGHT = 1080;
+
+const clamp = (n: number, min: number, max: number) =>
+  Math.max(min, Math.min(max, n));
+
+const SETTINGS_STORAGE_KEY = "tkb_generator_settings_v1";
+
+export default function DashboardPage() {
   const [file, setFile] = useState<File | null>(null);
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [sheetName, setSheetName] = useState<string>("");
   const [allClasses, setAllClasses] = useState<string[]>([]);
-
-  // State quản lý lựa chọn
   const [selectedClass, setSelectedClass] = useState<string>("");
   const [processedSchedule, setProcessedSchedule] =
     useState<ScheduleMatrix | null>(null);
-
-  // State quản lý Option
+  const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [removeTeacher, setRemoveTeacher] = useState<boolean>(true);
   const [highlightNN2, setHighlightNN2] = useState<boolean>(true);
-  const [nn2Color, setNn2Color] = useState<string>("#fef08a"); // Vàng nhạt mặc định
-  const [nn2Keywords, setNn2Keywords] = useState<string>(
-    "CNNN, Nhật, Hàn, Pháp, Trung",
-  ); // Từ khóa để tìm NN2
+  const [nn2Color, setNn2Color] = useState<string>("#4ade80");
+  const [nn2Keywords, setNn2Keywords] = useState<string>("Pháp, Trung");
   const [currentTheme, setCurrentTheme] = useState(THEMES[0]);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showWatermark, setShowWatermark] = useState(true);
+  const [useImageLogo, setUseImageLogo] = useState(true);
+  const [useLoadingGif, setUseLoadingGif] = useState(true);
+  const [previewZoomScale, setPreviewZoomScale] = useState(1);
+  const [userPreviewZoom, setUserPreviewZoom] = useState(false);
+  const [zoomPercentInput, setZoomPercentInput] = useState("100");
 
   const tableRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewOuterRef = useRef<HTMLDivElement>(null);
+  const hadScheduleRef = useRef(false);
+  const didHydrateSettingsRef = useRef(false);
+  const hadPersistedSettingsRef = useRef(false);
+  const computeAutoZoom = React.useCallback(() => {
+    const outer = previewOuterRef.current;
+    if (!outer) return;
+    const width = outer.clientWidth;
+    const rawScale = (width - 2) / PREVIEW_BASE_WIDTH;
+    const scale = clamp(rawScale, 0.3, 1);
+    setPreviewZoomScale(Number.isFinite(scale) ? scale : 1);
+    setZoomPercentInput(`${Math.round(scale * 100)}`);
+  }, []);
 
-  // --- Xử lý đọc file ---
+  const runAutoZoomStabilized = React.useCallback(() => {
+    let frames = 0;
+    let lastWidth = -1;
+
+    const tick = () => {
+      frames += 1;
+      const outer = previewOuterRef.current;
+      const width = outer?.clientWidth ?? 0;
+      if (width > 0) {
+        computeAutoZoom();
+        if (Math.abs(width - lastWidth) < 0.5 && frames >= 3) return;
+        lastWidth = width;
+      }
+      // AnimatePresence `mode="wait"` can delay mounting the preview by ~0.4s,
+      // so we keep retrying long enough to catch the first render.
+      if (frames < 90) requestAnimationFrame(tick);
+    };
+
+    requestAnimationFrame(tick);
+  }, [computeAutoZoom]);
+
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
+      if (!raw) return;
+      const parsed: unknown = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return;
+      hadPersistedSettingsRef.current = true;
+      const obj = parsed as Record<string, unknown>;
+
+      if (typeof obj.removeTeacher === "boolean") setRemoveTeacher(obj.removeTeacher);
+      if (typeof obj.highlightNN2 === "boolean") setHighlightNN2(obj.highlightNN2);
+      if (typeof obj.nn2Color === "string") setNn2Color(obj.nn2Color);
+      if (typeof obj.nn2Keywords === "string") setNn2Keywords(obj.nn2Keywords);
+      if (typeof obj.showWatermark === "boolean") setShowWatermark(obj.showWatermark);
+      if (typeof obj.showSettings === "boolean") setShowSettings(obj.showSettings);
+
+      if (typeof obj.themeId === "string") {
+        const foundTheme = THEMES.find((t) => t.id === obj.themeId);
+        if (foundTheme) setCurrentTheme(foundTheme);
+      }
+
+      if (typeof obj.userPreviewZoom === "boolean") setUserPreviewZoom(obj.userPreviewZoom);
+      if (typeof obj.previewZoomScale === "number" && Number.isFinite(obj.previewZoomScale)) {
+        setPreviewZoomScale(clamp(obj.previewZoomScale, 0.3, 2.5));
+      }
+      if (typeof obj.zoomPercentInput === "string") setZoomPercentInput(obj.zoomPercentInput);
+    } catch {
+      // ignore
+    } finally {
+      didHydrateSettingsRef.current = true;
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!didHydrateSettingsRef.current) return;
+    const payload = {
+      removeTeacher,
+      highlightNN2,
+      nn2Color,
+      nn2Keywords,
+      themeId: currentTheme.id,
+      showWatermark,
+      showSettings,
+      userPreviewZoom,
+      previewZoomScale,
+      zoomPercentInput,
+    };
+    try {
+      window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(payload));
+    } catch {
+      // ignore
+    }
+  }, [
+    removeTeacher,
+    highlightNN2,
+    nn2Color,
+    nn2Keywords,
+    currentTheme.id,
+    showWatermark,
+    showSettings,
+    userPreviewZoom,
+    previewZoomScale,
+    zoomPercentInput,
+  ]);
+
+  useLayoutEffect(() => {
+    // Default to AUTO on first load if nothing was persisted (Fast Refresh can preserve state).
+    if (!hadPersistedSettingsRef.current) setUserPreviewZoom(false);
+  }, []);
+
+  useLayoutEffect(() => {
+    // When the preview appears for the first time, compute AUTO zoom immediately.
+    const hasSchedule = Boolean(processedSchedule);
+    if (!hadScheduleRef.current && hasSchedule) {
+      setUserPreviewZoom(false);
+      runAutoZoomStabilized();
+    }
+    hadScheduleRef.current = hasSchedule;
+  }, [processedSchedule, runAutoZoomStabilized]);
+
+  useLayoutEffect(() => {
+    if (!processedSchedule) return;
+    if (userPreviewZoom) return;
+
+    runAutoZoomStabilized();
+    const outer = previewOuterRef.current;
+    if (!outer) return;
+    const ro = new ResizeObserver(computeAutoZoom);
+    ro.observe(outer);
+    window.addEventListener("resize", computeAutoZoom);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", computeAutoZoom);
+    };
+  }, [
+    processedSchedule,
+    userPreviewZoom,
+    computeAutoZoom,
+    runAutoZoomStabilized,
+  ]);
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = e.target.files?.[0];
     if (!uploadedFile) return;
-
+    setLoading(true);
     setFile(uploadedFile);
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const bstr = evt.target?.result;
-      const wb = XLSX.read(bstr, { type: "binary" });
-      setWorkbook(wb);
-
-      // Tự động tìm sheet có khả năng là TKB nhất (chứa chữ TKB hoặc Sheet lớn nhất)
-      const likelySheet =
-        wb.SheetNames.find(
-          (n) =>
-            n.toUpperCase().includes("TKB") || n.toUpperCase().includes("DATA"),
-        ) || wb.SheetNames[0];
-      setSheetName(likelySheet);
-      analyzeSheet(wb, likelySheet);
-    };
-    reader.readAsBinaryString(uploadedFile);
+    setTimeout(() => {
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const bstr = evt.target?.result;
+          const wb = XLSX.read(bstr, { type: "binary" });
+          setWorkbook(wb);
+          const likelySheet =
+            wb.SheetNames.find((n) => n.toUpperCase().includes("DATA")) ||
+            wb.SheetNames[0];
+          setSheetName(likelySheet);
+          analyzeSheet(wb, likelySheet);
+        } catch {
+          alert("Lỗi đọc file Excel.");
+          setFile(null);
+        } finally {
+          setLoading(false);
+        }
+      };
+      reader.readAsBinaryString(uploadedFile);
+    }, 1500);
   };
 
-  // --- Phân tích file để lấy danh sách lớp ---
   const analyzeSheet = (wb: XLSX.WorkBook, sheet: string) => {
     const ws = wb.Sheets[sheet];
-    const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
-
-    // Tìm dòng header chứa tên các lớp (thường là dòng có nhiều cột dữ liệu string ngắn như 10A1, 11A1...)
-    // Logic: Tìm dòng có chứa chữ "Thứ", "Tiết" và các chuỗi giống tên lớp
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as SheetData;
     let headerRowIndex = -1;
-    for (let i = 0; i < Math.min(data.length, 20); i++) {
+    for (let i = 0; i < Math.min(data.length, 10); i++) {
       const row = data[i];
-      if (
-        row &&
-        row.some(
-          (cell) =>
-            typeof cell === "string" &&
-            (cell.includes("10") || cell.includes("11") || cell.includes("12")),
-        )
-      ) {
-        headerRowIndex = i;
-        break;
+      if (row && row.length > 3) {
+        const hasClassNames = row.slice(3).some((cell: unknown) => {
+          if (typeof cell === "string") {
+            return /^\d+[A-Z]/.test(cell.trim());
+          }
+          return false;
+        });
+        if (hasClassNames) {
+          headerRowIndex = i;
+          break;
+        }
       }
     }
-
-    if (headerRowIndex !== -1) {
-      const headerRow = data[headerRowIndex];
-      // Lọc ra các cột là tên lớp (bỏ qua Thứ, Buổi, Tiết...)
-      const classes: string[] = [];
-      headerRow.forEach((cell: any) => {
-        if (typeof cell === "string" && /^[0-9]{2}[A-Z]/.test(cell)) {
-          // Regex đơn giản check tên lớp vd: 10A1
-          classes.push(cell);
-        }
-      });
-      setAllClasses(classes);
-      if (classes.length > 0) setSelectedClass(classes[0]);
-    } else {
-      alert(
-        "Không tìm thấy dòng tiêu đề chứa tên lớp. Vui lòng kiểm tra file Excel.",
-      );
+    if (headerRowIndex === -1) {
+      alert("Không tìm thấy dòng tiêu đề chứa tên các lớp!");
+      return;
     }
+    const classesSet = new Set<string>();
+    const headerRow = data[headerRowIndex];
+    for (let col = 3; col < headerRow.length; col++) {
+      const cell = headerRow[col];
+      if (cell && typeof cell === "string") {
+        const trimmed = cell.trim();
+        if (/^\d+[A-Z]/.test(trimmed)) {
+          classesSet.add(trimmed);
+        }
+      }
+    }
+    setAllClasses(Array.from(classesSet).sort());
   };
 
-  // --- Xử lý tạo TKB cho lớp đã chọn ---
-  useEffect(() => {
-    if (!workbook || !selectedClass || !sheetName) return;
-
+  const handleSelectClass = (className: string) => {
+    setSelectedClass(className);
+    setUserPreviewZoom(false);
+    if (!workbook || !sheetName) return;
     const ws = workbook.Sheets[sheetName];
-    const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
-
-    // Tìm lại index cột của lớp được chọn
-    let classColIndex = -1;
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as SheetData;
     let headerRowIndex = -1;
-    let dayColIndex = -1;
-    let periodColIndex = -1; // Cột tiết
-
-    // Scan lại để tìm vị trí chính xác
-    for (let i = 0; i < Math.min(data.length, 20); i++) {
+    for (let i = 0; i < Math.min(data.length, 10); i++) {
       const row = data[i];
-      if (!row) continue;
-
-      const foundClassIndex = row.findIndex(
-        (cell: any) => cell === selectedClass,
-      );
-      if (foundClassIndex !== -1) {
-        headerRowIndex = i;
-        classColIndex = foundClassIndex;
-        // Tìm cột Thứ và Tiết trên cùng dòng hoặc các dòng lân cận
-        dayColIndex = row.findIndex(
-          (c: any) =>
-            c && typeof c === "string" && c.toUpperCase().includes("THỨ"),
-        );
-        // Nếu không thấy chữ Thứ ở dòng header, tìm ở các cột đầu tiên của các dòng dữ liệu
-        if (dayColIndex === -1) dayColIndex = 0; // Mặc định cột A
-
-        periodColIndex = row.findIndex(
-          (c: any) =>
-            c && typeof c === "string" && c.toUpperCase().includes("TIẾT"),
-        );
-        if (periodColIndex === -1) periodColIndex = 2; // Mặc định cột C (thường là A: Thứ, B: Buổi, C: Tiết)
+      if (row && row.length > 3) {
+        const hasClassNames = row.slice(3).some((cell: unknown) => {
+          if (typeof cell === "string") {
+            return /^\d+[A-Z]/.test(cell.trim());
+          }
+          return false;
+        });
+        if (hasClassNames) {
+          headerRowIndex = i;
+          break;
+        }
+      }
+    }
+    if (headerRowIndex === -1) return;
+    const headerRow = data[headerRowIndex];
+    let classColumnIndex = -1;
+    for (let col = 3; col < headerRow.length; col++) {
+      const cell = headerRow[col];
+      if (cell && typeof cell === "string" && cell.trim() === className) {
+        classColumnIndex = col;
         break;
       }
     }
-
-    if (classColIndex === -1) return;
-
-    // Khởi tạo ma trận rỗng: 10 tiết (5 sáng + 5 chiều) x 6 ngày (2 -> 7)
-    // Map: [PeriodIndex][DayIndex] -> Cell Data
-    // PeriodIndex: 0-4 (Sáng), 5-9 (Chiều)
-    // DayIndex: 0 (Thứ 2) -> 5 (Thứ 7)
-    const matrix: ScheduleMatrix = Array(10)
+    if (classColumnIndex === -1) {
+      alert(`Không tìm thấy cột cho lớp ${className}`);
+      return;
+    }
+    // Render expects a 10 (periods) x 6 (days) matrix.
+    const schedule: ScheduleMatrix = Array(10)
       .fill(null)
       .map(() => Array(6).fill(null));
 
-    // Duyệt dữ liệu từ sau dòng header
-    let currentDayStr = "";
-
-    for (let i = headerRowIndex + 1; i < data.length; i++) {
-      const row = data[i];
-      if (!row) continue;
-
-      // Lấy dữ liệu Thứ (Xử lý việc Merge Cell bằng cách lưu state ngày hiện tại)
-      const dayRaw = row[dayColIndex];
-      if (dayRaw) currentDayStr = dayRaw.toString();
-
-      // Parse ngày ra index (2->0, 3->1, ...)
-      let dayIndex = -1;
-      if (currentDayStr.includes("2")) dayIndex = 0;
-      else if (currentDayStr.includes("3")) dayIndex = 1;
-      else if (currentDayStr.includes("4")) dayIndex = 2;
-      else if (currentDayStr.includes("5")) dayIndex = 3;
-      else if (currentDayStr.includes("6")) dayIndex = 4;
-      else if (currentDayStr.includes("7")) dayIndex = 5;
-
-      // Lấy Tiết
-      const periodRaw = row[periodColIndex];
-      let periodNum = -1;
-      if (typeof periodRaw === "number") periodNum = periodRaw;
-      else if (typeof periodRaw === "string") periodNum = parseInt(periodRaw);
-
-      // Xác định buổi (Sáng/Chiều) để map vào index 0-9
-      // Logic: Nếu file có cột Buổi thì dùng, nếu không thì đoán dựa trên số tiết reset lại
-      // Trong file mẫu của bạn: Tiết chạy 1->5, sau đó lại 1->5 cho buổi chiều? Hay 1->10?
-      // CSV Snippet: Có cột "Buổi". "S" = Sáng, "C" = Chiều.
-      const sessionColIndex = dayColIndex + 1; // Thường cột Buổi nằm sau cột Thứ
-      const sessionRaw = row[sessionColIndex]; // S hoặc C
-
-      let finalPeriodIndex = -1;
-      if (periodNum >= 1 && periodNum <= 5) {
-        if (sessionRaw === "C" || sessionRaw === "Chiều") {
-          finalPeriodIndex = periodNum + 4; // Tiết 1 chiều = index 5
-        } else {
-          finalPeriodIndex = periodNum - 1; // Tiết 1 sáng = index 0
-        }
-      } else if (periodNum > 5) {
-        finalPeriodIndex = periodNum - 1; // Trường hợp file đánh số liên tục 1-10
+    const coerceInt = (value: unknown): number | null => {
+      if (typeof value === "number" && Number.isFinite(value))
+        return Math.trunc(value);
+      if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (!trimmed) return null;
+        const normalized = trimmed.replace(",", ".");
+        const asNumber = Number(normalized);
+        if (Number.isFinite(asNumber)) return Math.trunc(asNumber);
+        const m = trimmed.match(/-?\d+/);
+        if (m) return Number(m[0]);
       }
+      return null;
+    };
 
-      // Lấy nội dung môn học
-      const content = row[classColIndex];
+    const parseThu = (value: unknown): number | null => {
+      const direct = coerceInt(value);
+      if (direct !== null) return direct;
+      if (typeof value === "string") {
+        const s = value.trim().toUpperCase();
+        if (!s) return null;
+        if (s === "CN" || s.includes("CHỦ NHẬT") || s.includes("CHU NHAT"))
+          return 8;
+        const m = s.match(/(\d+)/);
+        if (m) return coerceInt(m[1]);
+      }
+      return null;
+    };
 
-      if (dayIndex !== -1 && finalPeriodIndex !== -1 && content) {
-        // Tách môn và giáo viên
-        // Format thường gặp: "Toán-Hạnh.N"
-        const parts = content.toString().split("-");
-        let subject = content.toString();
-        let teacher = "";
-
-        if (parts.length > 1) {
-          // Lấy phần sau dấu gạch ngang cuối cùng làm tên GV
-          // Regex: Lấy tất cả trừ phần sau dấu - cuối cùng
-          const lastHyphenIndex = content.lastIndexOf("-");
-          subject = content.substring(0, lastHyphenIndex);
-          teacher = content.substring(lastHyphenIndex + 1);
+    let currentDay = -1;
+    let periodOffset = 0;
+    let filledCount = 0;
+    for (let row = headerRowIndex + 1; row < data.length; row++) {
+      const rowData = data[row];
+      if (!rowData) continue;
+      const thu = rowData[0];
+      const buoi = rowData[1];
+      const tiet = rowData[2];
+      const cellContent = rowData[classColumnIndex];
+      const parsedThu = parseThu(thu);
+      if (parsedThu !== null) {
+        currentDay = parsedThu - 2;
+      }
+      if (typeof buoi === "string" && buoi.trim()) {
+        const session = buoi.toUpperCase().trim();
+        const leading = session[0];
+        if (leading === "S") {
+          periodOffset = 0;
+        } else if (leading === "C") {
+          periodOffset = 5;
         }
-
-        matrix[finalPeriodIndex][dayIndex] = {
-          subject: subject.trim(),
-          teacher: teacher.trim(),
-          originalText: content.toString(),
-        };
+      }
+      let periodIndex = -1;
+      const parsedTiet = coerceInt(tiet);
+      if (parsedTiet !== null) {
+        periodIndex = parsedTiet - 1 + periodOffset;
+      }
+      if (
+        currentDay >= 0 &&
+        currentDay < 6 &&
+        periodIndex >= 0 &&
+        periodIndex < 10
+      ) {
+        if (cellContent && typeof cellContent === "string") {
+          const text = cellContent.replace(/\s+/g, " ").trim();
+          schedule[periodIndex][currentDay] = parsePeriodText(text);
+          filledCount++;
+        } else {
+          schedule[periodIndex][currentDay] = null;
+        }
       }
     }
-
-    setProcessedSchedule(matrix);
-  }, [workbook, selectedClass, sheetName]); // Re-run khi thay đổi lớp hoặc workbook
-
-  // --- Kiểm tra xem ô có phải NN2 không ---
-  const isNN2 = (cell: ScheduleCell | null) => {
-    if (!cell || !highlightNN2) return false;
-    const keywords = nn2Keywords.split(",").map((k) => k.trim().toUpperCase());
-    const text = cell.originalText.toUpperCase();
-    return keywords.some((k) => k && text.includes(k));
+    setProcessedSchedule(schedule);
+    setUserPreviewZoom(false);
+    runAutoZoomStabilized();
+    if (filledCount === 0) {
+      console.warn(
+        "[TKB] Parsed 0 cells. Check sheet format for columns Thứ/Buổi/Tiết.",
+        {
+          sheetName,
+          selectedClass: className,
+          headerRowIndex,
+          classColumnIndex,
+        },
+      );
+    }
   };
 
-  // --- Xuất Excel ---
-  const exportExcel = () => {
+  function parsePeriodText(text: string): ScheduleCell {
+    if (!text) {
+      return { subject: "", teacher: "", originalText: "", type: "empty" };
+    }
+    const isActivity = /^(sinh hoạt|shđt|hoạt động|tự học|sinhhoạt)/i.test(
+      text,
+    );
+    if (isActivity) {
+      return {
+        subject: "Sinh hoạt",
+        teacher: "",
+        originalText: text,
+        type: "activity",
+      };
+    }
+    const match1 = /^([^-]+)\s*-\s*(.+)$/.exec(text);
+    if (match1) {
+      return {
+        subject: match1[1].trim(),
+        teacher: match1[2].trim(),
+        originalText: text,
+        type: "main",
+      };
+    }
+    const match2 = /^(.+)\((.+)\)$/.exec(text);
+    if (match2) {
+      return {
+        subject: match2[1].trim(),
+        teacher: match2[2].trim(),
+        originalText: text,
+        type: "main",
+      };
+    }
+    return {
+      subject: text,
+      teacher: "",
+      originalText: text,
+      type: "main",
+    };
+  }
+
+  const isNN2 = (text: string): boolean => {
+    if (!highlightNN2) return false;
+    if (!text) return false;
+    const kw = nn2Keywords.split(",").map((s) => s.trim().toLowerCase());
+    const lower = text.toLowerCase();
+    return kw.some((k) => lower.includes(k));
+  };
+
+  const handleExportImage = async () => {
     if (!processedSchedule) return;
+    setExporting(true);
+    setTimeout(async () => {
+      try {
+        const isProbablyBlank = (canvas: HTMLCanvasElement) => {
+          const ctx = canvas.getContext("2d", { willReadFrequently: true });
+          if (!ctx) return false;
+          const points: Array<[number, number]> = [
+            [10, 10],
+            [100, 100],
+            [400, 120],
+            [900, 200],
+            [1600, 300],
+            [300, 700],
+            [900, 700],
+            [1600, 900],
+          ];
+          const colors = points
+            .filter(([x, y]) => x < canvas.width && y < canvas.height)
+            .map(([x, y]) => Array.from(ctx.getImageData(x, y, 1, 1).data));
+          if (colors.length < 2) return false;
+          const first = colors[0].join(",");
+          return colors.every((c) => c.join(",") === first);
+        };
 
-    // Tạo dữ liệu cho Excel
-    const header = [
-      "Tiết",
-      "Thứ 2",
-      "Thứ 3",
-      "Thứ 4",
-      "Thứ 5",
-      "Thứ 6",
-      "Thứ 7",
-    ];
-    const body = processedSchedule.map((row, idx) => {
-      const periodName = idx < 5 ? `Sáng ${idx + 1}` : `Chiều ${idx - 4}`;
-      const rowData = [periodName];
-      row.forEach((cell) => {
-        if (cell) {
-          rowData.push(removeTeacher ? cell.subject : cell.originalText);
-        } else {
-          rowData.push("");
+        const resolveExportTheme = (): ExportTheme => {
+          if (currentTheme.id === "light") {
+            return {
+              panelFill: "rgba(255,255,255,0.94)",
+              panelBorder: "rgba(148,163,184,0.40)",
+              textPrimary: "#0f172a",
+              textMuted: "rgba(15,23,42,0.65)",
+              cellFill: "rgba(255,255,255,0.95)",
+              cellBorder: "rgba(148,163,184,0.35)",
+              cellEmptyFill: "rgba(255,255,255,0.80)",
+              cellEmptyBorder: "rgba(148,163,184,0.18)",
+            };
+          }
+          return {
+            panelFill: "rgba(2,6,23,0.65)",
+            panelBorder: "rgba(255,255,255,0.12)",
+            textPrimary: "#ffffff",
+            textMuted: "rgba(255,255,255,0.65)",
+            cellFill: "rgba(15,23,42,0.70)",
+            cellBorder: "rgba(255,255,255,0.12)",
+            cellEmptyFill: "rgba(15,23,42,0.25)",
+            cellEmptyBorder: "rgba(255,255,255,0.08)",
+          };
+        };
+
+        const hexToRgba = (hex: string, alpha01: number) => {
+          const cleaned = hex.trim().replace("#", "");
+          if (cleaned.length !== 6) return `rgba(0,0,0,${alpha01})`;
+          const r = parseInt(cleaned.slice(0, 2), 16);
+          const g = parseInt(cleaned.slice(2, 4), 16);
+          const b = parseInt(cleaned.slice(4, 6), 16);
+          return `rgba(${r}, ${g}, ${b}, ${alpha01})`;
+        };
+
+        const drawRoundedRect = (
+          ctx: CanvasRenderingContext2D,
+          x: number,
+          y: number,
+          w: number,
+          h: number,
+          r: number,
+        ) => {
+          const radius = Math.min(r, w / 2, h / 2);
+          ctx.beginPath();
+          ctx.moveTo(x + radius, y);
+          ctx.arcTo(x + w, y, x + w, y + h, radius);
+          ctx.arcTo(x + w, y + h, x, y + h, radius);
+          ctx.arcTo(x, y + h, x, y, radius);
+          ctx.arcTo(x, y, x + w, y, radius);
+          ctx.closePath();
+        };
+
+        const W = 1920;
+        const H = 1080;
+        const canvas = document.createElement("canvas");
+        canvas.width = W;
+        canvas.height = H;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("Cannot create canvas context");
+
+        // Background
+        ctx.fillStyle = currentTheme.exportBg;
+        ctx.fillRect(0, 0, W, H);
+
+        // Simple mesh approximation (avoid CSS gradients / oklab parsing)
+        const [c1, c2] = currentTheme.previewColors;
+        const mesh1 = ctx.createRadialGradient(
+          W * 0.18,
+          H * 0.12,
+          0,
+          W * 0.18,
+          H * 0.12,
+          900,
+        );
+        mesh1.addColorStop(0, hexToRgba(c1, 0.2));
+        mesh1.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = mesh1;
+        ctx.fillRect(0, 0, W, H);
+
+        const mesh2 = ctx.createRadialGradient(
+          W * 0.82,
+          H * 0.22,
+          0,
+          W * 0.82,
+          H * 0.22,
+          900,
+        );
+        mesh2.addColorStop(0, hexToRgba(c2, 0.2));
+        mesh2.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = mesh2;
+        ctx.fillRect(0, 0, W, H);
+
+        // Panel
+        const theme = resolveExportTheme();
+        const pad = 64;
+        const panelX = pad;
+        const panelY = pad;
+        const panelW = W - pad * 2;
+        const panelH = H - pad * 2;
+        drawRoundedRect(ctx, panelX, panelY, panelW, panelH, 28);
+        ctx.fillStyle = theme.panelFill;
+        ctx.fill();
+        ctx.strokeStyle = theme.panelBorder;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Header layout (computed so the badge never overlaps Academic Year or the title)
+        const headerX = panelX + 48;
+        const headerTop = panelY + 48;
+
+        const academicYearText = "Năm Học 2025-2026";
+        ctx.fillStyle = theme.textMuted;
+        ctx.font = "600 18px system-ui, -apple-system, Segoe UI, Arial";
+        const academicYearBaseline = headerTop + 18;
+        ctx.fillText(academicYearText, headerX, academicYearBaseline);
+
+        // Updated (top-right)
+        const updated = new Date().toLocaleDateString();
+        const updatedText = `UPDATED: ${updated}`;
+        ctx.fillStyle = theme.textMuted;
+        ctx.font =
+          "700 16px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+        ctx.textAlign = "right";
+        ctx.fillText(updatedText, panelX + panelW - 48, academicYearBaseline);
+        ctx.textAlign = "start";
+
+        // Badge (Class) – below Academic Year with safe gap
+        const badgeText = `Class ${selectedClass}`;
+        ctx.font = "800 14px system-ui, -apple-system, Segoe UI, Arial";
+        const badgeTextWidth = ctx.measureText(badgeText).width;
+        const badgePaddingX = 14;
+        const badgeW = Math.min(
+          260,
+          Math.max(120, badgeTextWidth + badgePaddingX * 2),
+        );
+        const badgeH = 28;
+        const badgeX = headerX;
+        const badgeY = academicYearBaseline + 10;
+        const badgeBottom = badgeY + badgeH;
+
+        drawRoundedRect(ctx, badgeX, badgeY, badgeW, badgeH, 14);
+        ctx.fillStyle =
+          currentTheme.id === "light" ? "#4f46e5" : "rgba(34,211,238,0.95)";
+        ctx.fill();
+        ctx.fillStyle = currentTheme.id === "light" ? "#ffffff" : "#0b1220";
+        ctx.fillText(badgeText, badgeX + badgePaddingX, badgeY + 19);
+
+        // Title – compute baseline so the title's top clears the badge
+        const titleText = "Thời Khóa Biểu";
+        ctx.fillStyle = theme.textPrimary;
+        ctx.font = "800 54px system-ui, -apple-system, Segoe UI, Arial";
+        const titleMetrics = ctx.measureText(titleText);
+        const titleAscent = titleMetrics.actualBoundingBoxAscent || 44;
+        const titleDescent = titleMetrics.actualBoundingBoxDescent || 10;
+        const titleTop = badgeBottom + 18;
+        const titleBaseline = titleTop + titleAscent;
+        ctx.fillText(titleText, headerX, titleBaseline);
+
+        // Grid layout
+        const gridTop = titleBaseline + titleDescent + 36;
+        const gridLeft = panelX + 48;
+        const gridRight = panelX + panelW - 48;
+        const gridBottom = panelY + panelH - 72;
+        const rowCount = 10;
+        const colCount = 6;
+        const gutter = 14;
+        const timeColW = 72;
+        const gridW = gridRight - gridLeft;
+        const gridH = gridBottom - gridTop;
+        const cellW = (gridW - timeColW - gutter * (colCount - 1)) / colCount;
+        const cellH = (gridH - 46 - gutter * (rowCount - 1)) / rowCount;
+
+        // Day headers
+        const days = ["MON", "TUE", "WED", "THU", "FRI", "SAT"];
+        for (let d = 0; d < colCount; d++) {
+          const x = gridLeft + timeColW + d * (cellW + gutter);
+          ctx.fillStyle = theme.textMuted;
+          ctx.font = "900 16px system-ui, -apple-system, Segoe UI, Arial";
+          ctx.fillText(days[d], x + 12, gridTop + 16);
+          ctx.strokeStyle = theme.panelBorder;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x, gridTop + 28);
+          ctx.lineTo(x + cellW, gridTop + 28);
+          ctx.stroke();
         }
-      });
-      return rowData;
-    });
 
-    const ws = XLSX.utils.aoa_to_sheet([
-      ["THỜI KHÓA BIỂU LỚP " + selectedClass],
-      header,
-      ...body,
-    ]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "TKB");
-    XLSX.writeFile(wb, `TKB_${selectedClass}.xlsx`);
+        // Time labels
+        for (let r = 0; r < rowCount; r++) {
+          const y = gridTop + 46 + r * (cellH + gutter);
+          const label = r < 5 ? `${r + 1} AM` : `${r - 4} PM`;
+          ctx.fillStyle = theme.textMuted;
+          ctx.font =
+            "800 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+          ctx.fillText(label, gridLeft, y + cellH / 2 + 6);
+        }
+
+        const wrapLines = (
+          ctx: CanvasRenderingContext2D,
+          text: string,
+          maxWidth: number,
+          maxLines: number,
+        ) => {
+          const words = text.split(/\s+/).filter(Boolean);
+          if (words.length === 0) return [""];
+
+          const lines: string[] = [];
+          let current = "";
+          for (const word of words) {
+            const next = current ? `${current} ${word}` : word;
+            if (ctx.measureText(next).width <= maxWidth) {
+              current = next;
+              continue;
+            }
+            if (current) lines.push(current);
+            current = word;
+            if (lines.length >= maxLines - 1) break;
+          }
+          if (lines.length < maxLines && current) lines.push(current);
+
+          if (lines.length > maxLines) lines.length = maxLines;
+          if (lines.length === maxLines) {
+            // Ensure last line fits with ellipsis if needed.
+            let last = lines[maxLines - 1];
+            const ellipsis = "…";
+            while (
+              last.length > 0 &&
+              ctx.measureText(`${last}${ellipsis}`).width > maxWidth
+            ) {
+              last = last.slice(0, -1).trimEnd();
+            }
+            lines[maxLines - 1] = last ? `${last}${ellipsis}` : ellipsis;
+          }
+          return lines;
+        };
+
+        const drawCellText = (
+          x: number,
+          y: number,
+          w: number,
+          h: number,
+          cell: ScheduleCell,
+        ) => {
+          const centerX = x + w / 2;
+          const centerY = y + h / 2;
+          ctx.textAlign = "center";
+          const subject = cell.subject || "";
+
+          const maxTextWidth = w - 24;
+          let subjectFontSize = 16;
+          const teacherFontSize = 11;
+          const hasTeacher = !removeTeacher && Boolean(cell.teacher);
+          const lineGap = hasTeacher ? 6 : 0;
+
+          ctx.textBaseline = "alphabetic";
+
+          // Fit subject into up to 2 lines (avoid aggressive truncation like "Ngoại ngữ 2 (Trun...)").
+          let subjectLines: string[] = [];
+          for (const size of [16, 15, 14]) {
+            subjectFontSize = size;
+            ctx.font = `800 ${subjectFontSize}px system-ui, -apple-system, Segoe UI, Arial`;
+            subjectLines = wrapLines(ctx, subject, maxTextWidth, 2);
+            if (subjectLines.length <= 2) break;
+          }
+
+          ctx.font = `800 ${subjectFontSize}px system-ui, -apple-system, Segoe UI, Arial`;
+          const mSub = ctx.measureText("Mg");
+          const subAscent =
+            mSub.actualBoundingBoxAscent || subjectFontSize * 0.8;
+          const subDescent =
+            mSub.actualBoundingBoxDescent || subjectFontSize * 0.2;
+          const subLineHeight = subAscent + subDescent;
+          const subBlockHeight =
+            subLineHeight * subjectLines.length +
+            (subjectLines.length > 1 ? 4 : 0);
+
+          let teacherAscent = 0;
+          let teacherDescent = 0;
+          let teacherHeight = 0;
+          if (hasTeacher) {
+            ctx.font = `800 ${teacherFontSize}px system-ui, -apple-system, Segoe UI, Arial`;
+            const mTeach = ctx.measureText("Mg");
+            teacherAscent =
+              mTeach.actualBoundingBoxAscent || teacherFontSize * 0.8;
+            teacherDescent =
+              mTeach.actualBoundingBoxDescent || teacherFontSize * 0.2;
+            teacherHeight = teacherAscent + teacherDescent;
+          }
+
+          const totalHeight =
+            subBlockHeight + (hasTeacher ? lineGap + teacherHeight : 0);
+          const topY = centerY - totalHeight / 2;
+
+          // Baselines so the whole block is vertically centered.
+          const firstSubjectBaseline = topY + subAscent;
+          const teacherBaseline =
+            topY + subBlockHeight + lineGap + teacherAscent;
+
+          ctx.fillStyle = theme.textPrimary;
+          ctx.font = `800 ${subjectFontSize}px system-ui, -apple-system, Segoe UI, Arial`;
+          for (let i = 0; i < subjectLines.length; i++) {
+            const baseline =
+              firstSubjectBaseline + i * subLineHeight + (i > 0 ? 4 : 0);
+            ctx.fillText(subjectLines[i], centerX, baseline);
+          }
+
+          if (hasTeacher) {
+            ctx.fillStyle = theme.textMuted;
+            ctx.font = `800 ${teacherFontSize}px system-ui, -apple-system, Segoe UI, Arial`;
+            const t =
+              (cell.teacher || "").length > 20
+                ? `${cell.teacher.slice(0, 19)}…`
+                : cell.teacher || "";
+            ctx.fillText(t, centerX, teacherBaseline);
+          }
+
+          ctx.textAlign = "start";
+          ctx.textBaseline = "alphabetic";
+        };
+
+        // Cells (processedSchedule is 10 (periods) x 6 (days))
+        for (let r = 0; r < rowCount; r++) {
+          for (let d = 0; d < colCount; d++) {
+            const x = gridLeft + timeColW + d * (cellW + gutter);
+            const y = gridTop + 46 + r * (cellH + gutter);
+            const cell = processedSchedule[r]?.[d] ?? null;
+
+            const isNN = cell && isNN2(cell.originalText);
+            const isActivity = cell?.type === "activity";
+
+            drawRoundedRect(ctx, x, y, cellW, cellH, 18);
+            if (!cell) {
+              ctx.fillStyle = theme.cellEmptyFill;
+              ctx.fill();
+              ctx.strokeStyle = theme.cellEmptyBorder;
+              ctx.lineWidth = 1;
+              ctx.stroke();
+              // dot
+              ctx.fillStyle =
+                currentTheme.id === "light"
+                  ? "rgba(15,23,42,0.15)"
+                  : "rgba(255,255,255,0.12)";
+              ctx.beginPath();
+              ctx.arc(x + cellW / 2, y + cellH / 2, 3, 0, Math.PI * 2);
+              ctx.fill();
+              continue;
+            }
+
+            if (isNN) {
+              ctx.fillStyle = hexToRgba(nn2Color, 0.12);
+              ctx.strokeStyle = hexToRgba(nn2Color, 0.4);
+            } else if (isActivity) {
+              ctx.fillStyle = "rgba(190, 24, 93, 0.10)";
+              ctx.strokeStyle = "rgba(190, 24, 93, 0.28)";
+            } else {
+              ctx.fillStyle = theme.cellFill;
+              ctx.strokeStyle = theme.cellBorder;
+            }
+            ctx.fill();
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            drawCellText(x, y, cellW, cellH, cell);
+          }
+        }
+
+        if (isProbablyBlank(canvas)) {
+          // If something goes wrong, fail explicitly instead of exporting an all-black image.
+          throw new Error("Export produced a blank image");
+        }
+
+        if (showWatermark) {
+          // Signature
+          ctx.fillStyle = theme.textMuted;
+          ctx.font =
+            "700 12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+          ctx.fillText(
+            "Generated by TKB Gen IV",
+            panelX + 48,
+            panelY + panelH - 28,
+          );
+          ctx.fillText(
+            "Design System V1.1 Fixed",
+            panelX + panelW - 260,
+            panelY + panelH - 28,
+          );
+        }
+
+        canvas.toBlob((blob) => {
+          if (blob) {
+            saveAs(blob, `Schedule_${selectedClass}_${Date.now()}.png`);
+          }
+        });
+      } catch (err) {
+        console.error(err);
+        alert("Lỗi xuất ảnh!");
+      } finally {
+        setExporting(false);
+      }
+    }, 200);
   };
 
-  // --- Xuất Ảnh ---
-  const exportImage = async () => {
-    if (!tableRef.current) return;
-    try {
-      const canvas = await html2canvas(tableRef.current, {
-        scale: 2, // Tăng chất lượng ảnh
-        backgroundColor: "#ffffff",
-      });
-      canvas.toBlob((blob) => {
-        if (blob) {
-          saveAs(blob, `TKB_${selectedClass}.png`);
-        }
-      });
-    } catch (err) {
-      console.error("Lỗi xuất ảnh:", err);
-      alert("Không thể xuất ảnh.");
-    }
+  const handleReset = () => {
+    setFile(null);
+    setWorkbook(null);
+    setSheetName("");
+    setAllClasses([]);
+    setSelectedClass("");
+    setProcessedSchedule(null);
+    setUserPreviewZoom(false);
   };
+
+  const applyZoomPercent = (value: string) => {
+    const parsed = Number.parseFloat(value.replace("%", "").trim());
+    if (!Number.isFinite(parsed)) return;
+    const scale = clamp(parsed / 100, 0.3, 2.5);
+    setUserPreviewZoom(true);
+    setPreviewZoomScale(scale);
+    setZoomPercentInput(`${Math.round(scale * 100)}`);
+  };
+
+  const previewScale = previewZoomScale;
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-8 font-sans">
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-              <FileSpreadsheet className="text-green-600" />
-              Công Cụ Tạo Thời Khóa Biểu
-            </h1>
-            <p className="text-gray-500 text-sm mt-1">
-              Hỗ trợ xử lý dữ liệu TKB nhà trường & xuất ảnh đẹp
-            </p>
-          </div>
-
-          <div className="flex gap-2">
-            <label className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg cursor-pointer hover:bg-blue-700 transition shadow-sm">
-              <Upload size={18} />
-              <span>Tải lên file Excel</span>
-              <input
-                type="file"
-                accept=".xlsx, .xls"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-            </label>
-          </div>
-        </div>
-
-        {file && (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Sidebar Controls */}
-            <div className="lg:col-span-1 space-y-4">
-              <div className="bg-white p-5 rounded-xl shadow-sm space-y-4">
-                <h3 className="font-semibold text-gray-700 flex items-center gap-2">
-                  <Settings size={18} /> Cấu hình
-                </h3>
-
-                {/* Chọn Lớp */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">
-                    Chọn lớp học
-                  </label>
-                  <select
-                    value={selectedClass}
-                    onChange={(e) => setSelectedClass(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-                  >
-                    {allClasses.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Tùy chọn hiển thị */}
-                <div className="space-y-3 pt-2 border-t border-gray-100">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={removeTeacher}
-                      onChange={(e) => setRemoveTeacher(e.target.checked)}
-                      className="rounded text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700">
-                      Ẩn tên giáo viên
-                    </span>
-                  </label>
-
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={highlightNN2}
-                        onChange={(e) => setHighlightNN2(e.target.checked)}
-                        className="rounded text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-gray-700">
-                        Tô màu Ngoại ngữ 2
-                      </span>
-                    </label>
-
-                    {highlightNN2 && (
-                      <div className="pl-6 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="color"
-                            value={nn2Color}
-                            onChange={(e) => setNn2Color(e.target.value)}
-                            className="h-8 w-8 rounded cursor-pointer border border-gray-200"
-                          />
-                          <span className="text-xs text-gray-500">Màu nền</span>
-                        </div>
-                        <div>
-                          <span className="text-xs text-gray-500 block mb-1">
-                            Từ khóa (phân cách bởi dấu phẩy):
-                          </span>
-                          <input
-                            type="text"
-                            value={nn2Keywords}
-                            onChange={(e) => setNn2Keywords(e.target.value)}
-                            className="w-full text-xs p-1 border border-gray-300 rounded"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Chọn Theme */}
-                <div className="pt-2 border-t border-gray-100">
-                  <label className="block text-sm font-medium text-gray-600 mb-2 flex items-center gap-2">
-                    <Palette size={16} /> Giao diện bảng
-                  </label>
-                  <div className="grid grid-cols-5 gap-2">
-                    {THEMES.map((theme, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setCurrentTheme(theme)}
-                        className={`w-full aspect-square rounded-full border-2 ${theme.bg.replace("bg-", "bg-")} ${currentTheme.name === theme.name ? "border-gray-800 scale-110" : "border-transparent"} transition`}
-                        title={theme.name}
-                      >
-                        <div
-                          className={`w-full h-full rounded-full ${theme.header.split(" ")[0]}`}
-                        ></div>
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-xs text-center mt-1 text-gray-500">
-                    {currentTheme.name}
-                  </p>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="bg-white p-5 rounded-xl shadow-sm space-y-3">
-                <button
-                  onClick={exportExcel}
-                  className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition"
-                >
-                  <Save size={18} /> Xuất Excel (.xlsx)
-                </button>
-                <button
-                  onClick={exportImage}
-                  className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition"
-                >
-                  <ImageIcon size={18} /> Xuất Ảnh (.png)
-                </button>
-              </div>
-            </div>
-
-            {/* Preview Area */}
-            <div className="lg:col-span-3">
-              <div className="bg-white p-1 rounded-xl shadow-sm overflow-auto">
-                {processedSchedule ? (
-                  <div
-                    ref={tableRef}
-                    className={`p-8 min-w-[700px] ${currentTheme.bg}`}
-                  >
-                    <div className="text-center mb-6">
-                      <h2
-                        className={`text-3xl font-bold uppercase mb-2 ${currentTheme.text}`}
-                      >
-                        Thời Khóa Biểu
-                      </h2>
-                      <h3 className="text-xl font-semibold text-gray-600">
-                        Lớp: {selectedClass}
-                      </h3>
-                    </div>
-
-                    <div
-                      className={`border-2 rounded-lg overflow-hidden ${currentTheme.border}`}
-                    >
-                      <table className="w-full border-collapse">
-                        <thead>
-                          <tr className={`${currentTheme.header}`}>
-                            <th className="p-3 border-r border-white/20 w-[10%]">
-                              Tiết
-                            </th>
-                            <th className="p-3 border-r border-white/20 w-[15%]">
-                              Thứ 2
-                            </th>
-                            <th className="p-3 border-r border-white/20 w-[15%]">
-                              Thứ 3
-                            </th>
-                            <th className="p-3 border-r border-white/20 w-[15%]">
-                              Thứ 4
-                            </th>
-                            <th className="p-3 border-r border-white/20 w-[15%]">
-                              Thứ 5
-                            </th>
-                            <th className="p-3 border-r border-white/20 w-[15%]">
-                              Thứ 6
-                            </th>
-                            <th className="p-3 w-[15%]">Thứ 7</th>
-                          </tr>
-                        </thead>
-                        <tbody className="text-sm">
-                          {processedSchedule.map((row, rowIdx) => {
-                            // Tách buổi sáng chiều để thêm row ngăn cách nếu cần (tùy chọn)
-                            const isAfternoonStart = rowIdx === 5;
-                            return (
-                              <React.Fragment key={rowIdx}>
-                                {isAfternoonStart && (
-                                  <tr className="bg-gray-200/50">
-                                    <td
-                                      colSpan={7}
-                                      className="text-center py-1 font-bold text-gray-500 text-xs tracking-widest uppercase"
-                                    >
-                                      Buổi Chiều
-                                    </td>
-                                  </tr>
-                                )}
-                                <tr className="border-b border-gray-200 last:border-0">
-                                  <td
-                                    className={`p-3 text-center font-bold border-r border-gray-200 ${currentTheme.text}`}
-                                  >
-                                    {rowIdx < 5 ? rowIdx + 1 : rowIdx - 4}
-                                  </td>
-                                  {row.map((cell, colIdx) => {
-                                    const isCellNN2 = isNN2(cell);
-                                    return (
-                                      <td
-                                        key={colIdx}
-                                        className={`p-3 text-center border-r border-gray-200 last:border-0 transition-colors ${currentTheme.cell}`}
-                                        style={
-                                          isCellNN2
-                                            ? { backgroundColor: nn2Color }
-                                            : {}
-                                        }
-                                      >
-                                        {cell ? (
-                                          <div className="flex flex-col">
-                                            <span className="font-semibold text-gray-800 text-base">
-                                              {removeTeacher
-                                                ? cell.subject
-                                                : cell.subject}
-                                            </span>
-                                            {!removeTeacher && cell.teacher && (
-                                              <span className="text-xs text-gray-500 italic mt-1">
-                                                {cell.teacher}
-                                              </span>
-                                            )}
-                                          </div>
-                                        ) : (
-                                          <span className="text-gray-300">
-                                            -
-                                          </span>
-                                        )}
-                                      </td>
-                                    );
-                                  })}
-                                </tr>
-                              </React.Fragment>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <div className="mt-4 text-right text-xs text-gray-400 italic">
-                      Được tạo tự động vào{" "}
-                      {new Date().toLocaleDateString("vi-VN")}
-                    </div>
-                  </div>
+    <div className="min-h-screen relative">
+      <AnimatePresence>
+        {(loading || exporting) && (
+          <motion.div
+            key="loading-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center"
+          >
+            <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-md" />
+            <motion.div
+              initial={{ y: 16, opacity: 0, scale: 0.98 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 16, opacity: 0, scale: 0.98 }}
+              className="relative w-[340px] max-w-[90vw] rounded-3xl border border-white/10 bg-slate-900/60 px-6 py-7 text-center shadow-2xl"
+            >
+              <div className="mx-auto mb-4 grid place-items-center">
+                {/* Placeholder – replace with your GIF later (e.g. `/loading.gif`) */}
+                {useLoadingGif ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src="/loading.gif"
+                    alt=""
+                    width={80}
+                    height={80}
+                    className="opacity-90"
+                    onError={() => setUseLoadingGif(false)}
+                  />
                 ) : (
-                  <div className="h-96 flex flex-col items-center justify-center text-gray-400">
-                    <RefreshCw className="animate-spin mb-2" size={32} />
-                    <p>Đang xử lý dữ liệu...</p>
-                  </div>
+                  <Image
+                    src="/loading-placeholder.svg"
+                    alt=""
+                    width={80}
+                    height={80}
+                    className="opacity-90"
+                    priority
+                  />
                 )}
               </div>
-            </div>
-          </div>
+              <div className="text-sm font-black tracking-wide text-white">
+                {exporting ? "Exporting..." : "Loading..."}
+              </div>
+              <div className="mt-1 text-xs font-medium text-white/60">
+                Please wait a moment
+              </div>
+            </motion.div>
+          </motion.div>
         )}
+      </AnimatePresence>
 
-        {!file && (
-          <div className="text-center py-20 bg-white rounded-xl border-2 border-dashed border-gray-300">
-            <FileSpreadsheet size={64} className="mx-auto text-gray-300 mb-4" />
-            <h3 className="text-xl font-medium text-gray-600">
-              Chưa có dữ liệu
-            </h3>
-            <p className="text-gray-500 mb-6">
-              Vui lòng tải lên file Excel (TKBCHINH.xlsx) để bắt đầu
-            </p>
-            <label className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg cursor-pointer hover:bg-blue-700 transition shadow-lg">
-              <Upload size={20} />
-              <span>Chọn File Tải Lên</span>
+      <header className="relative z-10 border-b border-white/10 backdrop-blur-xl bg-slate-950/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex items-center gap-3"
+            >
+              <div className="relative">
+                {useImageLogo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src="/logo.png"
+                    alt="TKB Generator"
+                    width={40}
+                    height={40}
+                    className="rounded-xl object-cover"
+                    onError={() => setUseImageLogo(false)}
+                  />
+                ) : (
+                  <>
+                    <div className="absolute inset-0 bg-gradient-to-br from-cyan-400 to-purple-500 blur-lg opacity-50"></div>
+                    <div className="relative bg-gradient-to-br from-cyan-500 to-purple-600 p-2.5 rounded-xl">
+                      <div className="w-6 h-6 grid place-items-center">
+                        <span className="text-[11px] font-black tracking-widest text-white">
+                          TKB
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div>
+                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+                  TKB Generator
+                </h1>
+                <p className="hidden sm:block text-xs text-white/50 font-medium tracking-wide">
+                  Made by KazukiDelta
+                </p>
+              </div>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex items-center gap-3 self-start sm:self-auto"
+            >
+              <div className="px-4 py-2 rounded-lg bg-white/5 border border-white/10">
+                <span className="text-xs font-bold text-white/70">
+                  v1.1 Fixed
+                </span>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        <div className="grid grid-cols-12 gap-4 sm:gap-6">
+          <motion.aside
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="col-span-12 lg:col-span-3 space-y-4"
+          >
+            <div className="glass-panel rounded-2xl p-5 space-y-4">
+              <div className="flex items-center gap-2 mb-3">
+                <FileSpreadsheet className="w-4 h-4 text-cyan-400" />
+                <h3 className="text-sm font-black uppercase tracking-wider text-white/90">
+                  Upload File
+                </h3>
+              </div>
               <input
+                ref={fileInputRef}
                 type="file"
-                accept=".xlsx, .xls"
+                accept=".xlsx,.xls"
                 onChange={handleFileUpload}
                 className="hidden"
               />
-            </label>
-          </div>
-        )}
+              {!file ? (
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full group relative overflow-hidden rounded-xl p-6 sm:p-8 border-2 border-dashed border-white/20 hover:border-cyan-400/50 transition-all duration-300 bg-white/5 hover:bg-white/10"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/0 to-purple-500/0 group-hover:from-cyan-500/10 group-hover:to-purple-500/10 transition-all duration-500"></div>
+                  <div className="relative flex flex-col items-center gap-3">
+                    <div className="p-3 rounded-xl bg-white/10 group-hover:bg-cyan-500/20 transition-colors">
+                      <Upload className="w-6 h-6 text-white/70 group-hover:text-cyan-400 transition-colors" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-bold text-white/90">
+                        Drop Excel file
+                      </p>
+                      <p className="text-xs text-white/50 mt-1">
+                        or click to browse
+                      </p>
+                    </div>
+                  </div>
+                </motion.button>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="space-y-3"
+                >
+                  <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 border border-emerald-400/30">
+                    <div className="flex items-center gap-3">
+                      <Check className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-white truncate">
+                          {file.name}
+                        </p>
+                        <p className="text-xs text-white/50 mt-0.5">
+                          {(file.size / 1024).toFixed(1)} KB
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleReset}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-400/30 text-red-300 text-sm font-bold transition-colors"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Reset
+                  </motion.button>
+                </motion.div>
+              )}
+            </div>
+
+            {allClasses.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="glass-panel rounded-2xl p-5"
+              >
+                <div className="flex items-center gap-2 mb-4">
+                  <Layers className="w-4 h-4 text-purple-400" />
+                  <h3 className="text-sm font-black uppercase tracking-wider text-white/90">
+                    CHỌN LỚP
+                  </h3>
+                </div>
+                <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+                  {allClasses.map((cls) => (
+                    <motion.button
+                      key={cls}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => handleSelectClass(cls)}
+                      className={cn(
+                        "px-3 py-2.5 rounded-lg text-xs font-black transition-all duration-300",
+                        selectedClass === cls
+                          ? "bg-gradient-to-br from-cyan-500 to-purple-500 text-white shadow-lg shadow-purple-500/30"
+                          : "bg-white/5 text-white/70 hover:bg-white/10 border border-white/10",
+                      )}
+                    >
+                      {cls}
+                    </motion.button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {processedSchedule && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="glass-panel rounded-2xl p-5"
+                >
+                  <div className="flex items-center gap-2 mb-4">
+                    <Palette className="w-4 h-4 text-pink-400" />
+                    <h3 className="text-sm font-black uppercase tracking-wider text-white/90">
+                      Theme
+                    </h3>
+                  </div>
+                  <div className="space-y-2">
+                    {THEMES.map((theme) => (
+                      <motion.button
+                        key={theme.id}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setCurrentTheme(theme)}
+                        className={cn(
+                          "w-full p-3 rounded-xl transition-all duration-300 flex items-center gap-3 group",
+                          currentTheme.id === theme.id
+                            ? "bg-white/15 border-2 border-white/30"
+                            : "bg-white/5 border border-white/10 hover:bg-white/10",
+                        )}
+                      >
+                        <div className="flex gap-1">
+                          {theme.previewColors.map((color, i) => (
+                            <div
+                              key={i}
+                              className="w-4 h-4 rounded-md"
+                              style={{ backgroundColor: color }}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-xs font-bold text-white/90 group-hover:text-white transition-colors">
+                          {theme.name}
+                        </span>
+                        {currentTheme.id === theme.id && (
+                          <Check className="w-4 h-4 text-white ml-auto" />
+                        )}
+                      </motion.button>
+                    ))}
+                  </div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="glass-panel rounded-2xl p-5"
+                >
+                  <button
+                    onClick={() => setShowSettings(!showSettings)}
+                    className="w-full flex items-center justify-between group"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Settings className="w-4 h-4 text-amber-400" />
+                      <h3 className="text-sm font-black uppercase tracking-wider text-white/90">
+                        Settings
+                      </h3>
+                    </div>
+                    <ChevronDown
+                      className={cn(
+                        "w-4 h-4 text-white/50 transition-transform duration-300",
+                        showSettings && "rotate-180",
+                      )}
+                    />
+                  </button>
+                  <AnimatePresence>
+                    {showSettings && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mt-4 space-y-3 overflow-hidden"
+                      >
+                        <EnhancedToggle
+                          label="Ẩn Tên Giáo Viên"
+                          active={removeTeacher}
+                          onClick={() => setRemoveTeacher(!removeTeacher)}
+                          icon={
+                            removeTeacher ? (
+                              <EyeOff className="w-3 h-3" />
+                            ) : (
+                              <Eye className="w-3 h-3" />
+                            )
+                          }
+                        />
+                        <EnhancedToggle
+                          label="Highlight NN2"
+                          active={highlightNN2}
+                          onClick={() => setHighlightNN2(!highlightNN2)}
+                          icon={<Sparkles className="w-3 h-3" />}
+                        />
+                        <EnhancedToggle
+                          label="Ẩn Watermark"
+                          active={!showWatermark}
+                          onClick={() => setShowWatermark(!showWatermark)}
+                          icon={<Layers className="w-3 h-3" />}
+                        />
+                        {highlightNN2 && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="space-y-2 pt-2"
+                          >
+                            <label className="text-xs font-bold text-white/70">
+                              NN2 Keywords
+                            </label>
+                            <input
+                              type="text"
+                              value={nn2Keywords}
+                              onChange={(e) => setNn2Keywords(e.target.value)}
+                              className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-xs text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-cyan-400/50"
+                              placeholder="Pháp, Trung"
+                            />
+                            <label className="text-xs font-bold text-white/70 block mt-3">
+                              Highlight Color
+                            </label>
+                            <input
+                              type="color"
+                              value={nn2Color}
+                              onChange={(e) => setNn2Color(e.target.value)}
+                              className="w-full h-10 rounded-lg cursor-pointer bg-white/10 border border-white/20"
+                            />
+                          </motion.div>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+
+                <motion.button
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleExportImage}
+                  disabled={exporting}
+                  className="w-full relative overflow-hidden group rounded-2xl p-5 bg-gradient-to-br from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 transition-all duration-300 shadow-2xl shadow-purple-500/30"
+                >
+                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
+                  <div className="relative flex items-center justify-center gap-3">
+                    {exporting ? (
+                      <>
+                        <RefreshCw className="w-5 h-5 animate-spin text-white" />
+                        <span className="text-sm font-black text-white">
+                          Exporting...
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-5 h-5 text-white" />
+                        <span className="text-sm font-black text-white">
+                          Xuất Ảnh
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </motion.button>
+              </>
+            )}
+          </motion.aside>
+
+          <main className="col-span-12 lg:col-span-9 min-w-0">
+            <AnimatePresence mode="wait">
+              {loading && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-center justify-center h-[600px] glass-panel rounded-3xl"
+                >
+                  <div className="text-center space-y-4">
+                    <div className="relative w-20 h-20 mx-auto">
+                      <div className="absolute inset-0 border-4 border-cyan-500/30 rounded-full"></div>
+                      <div className="absolute inset-0 border-4 border-t-cyan-500 rounded-full animate-spin"></div>
+                    </div>
+                    <p className="text-sm font-bold text-white/70">
+                      Processing file...
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+
+              {!loading && !processedSchedule && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="flex items-center justify-center h-[600px] glass-panel rounded-3xl relative overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-purple-500/5"></div>
+                  <div className="relative text-center space-y-6 max-w-md">
+                    <motion.div
+                      animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
+                      transition={{
+                        duration: 4,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
+                      className="w-32 h-32 mx-auto rounded-3xl flex items-center justify-center"
+                    >
+                      {useImageLogo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src="/logo.png"
+                          alt=""
+                          width={112}
+                          height={112}
+                          className="w-28 h-28 object-contain drop-shadow-[0_10px_30px_rgba(0,0,0,0.45)]"
+                          onError={() => setUseImageLogo(false)}
+                        />
+                      ) : (
+                        <LayoutDashboard
+                          className="w-12 h-12 text-white"
+                          strokeWidth={2}
+                        />
+                      )}
+                    </motion.div>
+                    <div>
+                      <h3 className="text-2xl font-black text-white mb-2">
+                        Sẵn Sàng Để Tạo Thời Khóa Biểu
+                      </h3>
+                      <p className="text-sm text-white/60 leading-relaxed">
+                        Upload file Excel và chọn lớp để tạo thời khóa biểu.
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {!loading && processedSchedule && (
+                <motion.div
+                  key="preview"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  transition={{ duration: 0.4 }}
+                  className="space-y-4"
+                >
+                  <div className="flex items-center justify-between px-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                      <span className="text-sm font-bold text-white/70">
+                        Live Preview
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="ml-1 flex items-center gap-1 rounded-lg bg-white/5 border border-white/10 px-2 py-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUserPreviewZoom(true);
+                            setPreviewZoomScale((s) => {
+                              const next = clamp(s - 0.1, 0.3, 2.5);
+                              setZoomPercentInput(`${Math.round(next * 100)}`);
+                              return next;
+                            });
+                          }}
+                          className="w-7 h-7 rounded-md bg-white/5 hover:bg-white/10 text-white/70"
+                          aria-label="Zoom out"
+                        >
+                          −
+                        </button>
+                        <div className="flex items-center">
+                          <input
+                            value={zoomPercentInput}
+                            onChange={(e) =>
+                              setZoomPercentInput(e.target.value)
+                            }
+                            onBlur={() => applyZoomPercent(zoomPercentInput)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                applyZoomPercent(zoomPercentInput);
+                                (e.currentTarget as HTMLInputElement).blur();
+                              }
+                            }}
+                            inputMode="numeric"
+                            className="w-12 bg-transparent text-center text-xs font-mono text-white/70 focus:outline-none"
+                            aria-label="Zoom percent"
+                          />
+                          <span className="text-xs font-mono text-white/50 select-none">
+                            %
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUserPreviewZoom(true);
+                            setPreviewZoomScale((s) => {
+                              const next = clamp(s + 0.1, 0.3, 2.5);
+                              setZoomPercentInput(`${Math.round(next * 100)}`);
+                              return next;
+                            });
+                          }}
+                          className="w-7 h-7 rounded-md bg-white/5 hover:bg-white/10 text-white/70"
+                          aria-label="Zoom in"
+                        >
+                          +
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUserPreviewZoom(false);
+                            // Apply immediately (don't wait for effects) so the button feels responsive.
+                            runAutoZoomStabilized();
+                          }}
+                          className={cn(
+                            "ml-1 px-2 h-7 rounded-md text-[10px] font-black tracking-wide transition-colors",
+                            userPreviewZoom
+                              ? "bg-white/5 hover:bg-white/10 text-white/60"
+                              : "bg-white/15 border border-white/15 text-white",
+                          )}
+                          aria-label="Auto zoom"
+                          title="Auto"
+                        >
+                          AUTO
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[24px] overflow-hidden">
+                    <div
+                      ref={previewOuterRef}
+                      className="no-scrollbar rounded-[24px] max-h-[70vh] overflow-auto pb-4"
+                    >
+                      <div
+                        className="mx-auto"
+                        style={{
+                          width: PREVIEW_BASE_WIDTH * previewScale,
+                          height: PREVIEW_BASE_HEIGHT * previewScale,
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: PREVIEW_BASE_WIDTH,
+                            height: PREVIEW_BASE_HEIGHT,
+                            transform: `scale(${previewScale})`,
+                            transformOrigin: "top left",
+                          }}
+                        >
+                          <div
+                            ref={tableRef}
+                            style={{
+                              width: PREVIEW_BASE_WIDTH,
+                              height: PREVIEW_BASE_HEIGHT,
+                            }}
+                            className={`p-8 rounded-[24px] shadow-2xl relative overflow-hidden ${currentTheme.panelBg} border ${currentTheme.panelBorder}`}
+                          >
+                            <div className="flex justify-between items-end mb-5">
+                              <div>
+                                <div className="flex items-center gap-3 mb-2">
+                                  <span
+                                    className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest ${currentTheme.accent}`}
+                                  >
+                                    Class {selectedClass}
+                                  </span>
+                                  <span
+                                    className={`text-sm font-medium opacity-60 flex items-center gap-1.5 ${currentTheme.text}`}
+                                  >
+                                    <Zap
+                                      size={12}
+                                      className="text-yellow-400"
+                                    />{" "}
+                                    Năm Học 2025-2026
+                                  </span>
+                                </div>
+                                <h2
+                                  className={`text-4xl font-black tracking-tight ${currentTheme.titleColor}`}
+                                >
+                                  Thời Khóa Biểu
+                                </h2>
+                              </div>
+                              <div
+                                className={`text-right opacity-60 ${currentTheme.text}`}
+                              >
+                                <Calendar
+                                  size={28}
+                                  strokeWidth={1}
+                                  className="ml-auto mb-1"
+                                />
+                                <p className="text-xs font-mono">
+                                  UPDATED: {new Date().toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-[60px_1fr] gap-4">
+                              <div className="pt-11 space-y-2">
+                                {Array.from({ length: 10 }).map((_, i) => (
+                                  <div
+                                    key={i}
+                                    className={`h-[70px] flex flex-col items-center justify-center text-xs font-bold ${currentTheme.timeColor}`}
+                                  >
+                                    <span className="text-lg leading-none">
+                                      {i < 5 ? i + 1 : i - 4}
+                                    </span>
+                                    <span className="text-xs">
+                                      {i < 5 ? "AM" : "PM"}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+
+                              <div className="flex-1">
+                                <div className="grid grid-cols-6 gap-3 mb-3">
+                                  {[
+                                    "MON",
+                                    "TUE",
+                                    "WED",
+                                    "THU",
+                                    "FRI",
+                                    "SAT",
+                                  ].map((day) => (
+                                    <div
+                                      key={day}
+                                      className={`text-center pb-2 border-b ${currentTheme.divider}`}
+                                    >
+                                      <span
+                                        className={`text-sm font-black tracking-widest ${currentTheme.dayColor}`}
+                                      >
+                                        {day}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+
+                                <div className="grid grid-cols-6 gap-3">
+                                  {processedSchedule?.map((row, rowIdx) => (
+                                    <React.Fragment key={rowIdx}>
+                                      {row.map((cell, colIdx) => {
+                                        const isNN =
+                                          cell && isNN2(cell.originalText);
+                                        const isActivity =
+                                          cell?.type === "activity";
+                                        const hexToRgb = (hex: string) => {
+                                          const result =
+                                            /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(
+                                              hex,
+                                            );
+                                          return result
+                                            ? {
+                                                r: parseInt(result[1], 16),
+                                                g: parseInt(result[2], 16),
+                                                b: parseInt(result[3], 16),
+                                              }
+                                            : { r: 74, g: 222, b: 128 };
+                                        };
+                                        const rgb = hexToRgb(nn2Color);
+
+                                        return (
+                                          <div
+                                            key={`${rowIdx}-${colIdx}`}
+                                            className={cn(
+                                              "h-[70px] rounded-xl p-2 flex flex-col justify-center items-center text-center transition-all duration-300 relative group border",
+                                              cell
+                                                ? isNN
+                                                  ? ""
+                                                  : isActivity
+                                                    ? "border-[#3d1a1f]"
+                                                    : currentTheme.card_filled
+                                                : currentTheme.card_empty,
+                                            )}
+                                            style={
+                                              cell
+                                                ? isNN
+                                                  ? {
+                                                      borderColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)`,
+                                                      backgroundColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.12)`,
+                                                    }
+                                                  : isActivity
+                                                    ? {
+                                                        backgroundColor:
+                                                          "rgba(190, 24, 93, 0.08)",
+                                                        borderColor:
+                                                          "rgba(190, 24, 93, 0.25)",
+                                                      }
+                                                    : {}
+                                                : {}
+                                            }
+                                          >
+                                            {cell ? (
+                                              <>
+                                                <span
+                                                  className={`font-bold text-sm leading-tight ${currentTheme.titleColor}`}
+                                                >
+                                                  {cell.subject}
+                                                </span>
+                                                {!removeTeacher &&
+                                                  cell.teacher && (
+                                                    <span
+                                                      className={`text-[10px] font-bold opacity-60 mt-1 px-2 py-0.5 rounded ${currentTheme.id === "light" ? "bg-black/5" : "bg-black/20"}`}
+                                                    >
+                                                      {cell.teacher}
+                                                    </span>
+                                                  )}
+                                                <div className="absolute inset-0 bg-white/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                                              </>
+                                            ) : (
+                                              <div
+                                                className={`w-1.5 h-1.5 rounded-full ${currentTheme.emptyDot}`}
+                                              ></div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </React.Fragment>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+
+                            {showWatermark && (
+                              <div
+                                className={`mt-5 pt-3 border-t ${currentTheme.divider} flex justify-between items-center text-xs tracking-widest uppercase ${currentTheme.sigColor}`}
+                              >
+                                <span>Generated by TKB Generator</span>
+                                <span>Trường THPT Chuyên Lý Tự Trọng</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </main>
+        </div>
+        <footer className="mt-8 border-t border-white/10 pt-4 text-center text-xs text-white/40">
+          © {new Date().getFullYear()} KazukiDelta. All Rights Reserved.
+        </footer>
       </div>
     </div>
+  );
+}
+
+function EnhancedToggle({
+  label,
+  active,
+  onClick,
+  icon,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <motion.div
+      whileHover={{ scale: 1.01 }}
+      onClick={onClick}
+      className="flex items-center justify-between p-3 rounded-xl cursor-pointer bg-white/5 hover:bg-white/10 transition-all duration-300 group border border-white/10"
+    >
+      <div className="flex items-center gap-2">
+        {icon && (
+          <div className="text-white/60 group-hover:text-white/80 transition-colors">
+            {icon}
+          </div>
+        )}
+        <span className="text-xs font-bold text-white/70 group-hover:text-white/90 transition-colors">
+          {label}
+        </span>
+      </div>
+      <div
+        className={cn(
+          "w-10 h-6 rounded-full p-1 transition-all duration-300 flex items-center",
+          active
+            ? "bg-gradient-to-r from-cyan-500 to-purple-500"
+            : "bg-white/10",
+        )}
+      >
+        <motion.div
+          layout
+          className="w-4 h-4 rounded-full bg-white shadow-lg"
+          style={{ x: active ? 16 : 0 }}
+          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+        />
+      </div>
+    </motion.div>
   );
 }
