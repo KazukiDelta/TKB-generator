@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import LenisScroll from "./LenisScroll";
 
 export const metadata: Metadata = {
   title: "TKB Generator - Professional Schedule Creator",
@@ -28,6 +29,7 @@ export default function RootLayout({
           <div className="absolute inset-0 bg-gradient-to-b from-slate-950/30 via-slate-950/70 to-slate-950" />
           <div className="absolute inset-0 bg-noise opacity-[0.06] mix-blend-overlay" />
         </div>
+        <LenisScroll />
         {children}
       </body>
     </html>

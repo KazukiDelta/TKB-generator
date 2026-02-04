@@ -572,29 +572,45 @@ export default function DashboardPage() {
     }
     const codeDashDash = /^([A-ZĐ]{2,6})-([A-ZĐ]{2,5})-(.+)$/.exec(text);
     if (codeDashDash) {
+      const teachers = codeDashDash[3]
+        .split(/[,-]/)
+        .map((p) => p.trim())
+        .filter(Boolean)
+        .join(", ");
       return {
         subject: `${codeDashDash[1].trim()}-${codeDashDash[2].trim()}`,
-        teacher: codeDashDash[3]
-          .split("-")
-          .map((p) => p.trim())
-          .filter(Boolean)
-          .join(", "),
+        teacher: teachers,
         originalText: text,
         type: "main",
       };
     }
     // Compact "Môn-GV" form: keep everything before the LAST "-" as the subject.
-    // Examples: "Ngữ văn-Quỳnh.T", "Lịch sử-Nương", "GDKT-PL-Trí".
+    // Examples: "Ngữ văn-Quỳnh.T", "Lịch sử-Nương", "GDKT-PL-Trí", "Chuyên 1 - GV1 - GV2".
     if (text.includes("-")) {
       const parts = text
         .split("-")
         .map((p) => p.trim())
         .filter(Boolean);
       if (parts.length >= 2) {
-        const teacherCandidate = parts[parts.length - 1] ?? "";
-        // If the first token is an all-caps subject code (e.g. "GDTC-Quyên-Thal-Vân.L-Phương"),
-        // treat the rest as one or more teachers.
+        // NEW: Check if this is "Chuyên X - GV1 - GV2" pattern
+        const firstLooksLikeSubject = /[a-zà-ỹ]/i.test(parts[0] ?? "");
         const firstIsCode = /^[A-Z\u0110]{2,6}$/.test(parts[0] ?? "");
+
+        if (firstLooksLikeSubject && !firstIsCode && parts.length >= 2) {
+          // Format: "Chuyên 1 - GV1 - GV2..."
+          const subjectCandidate = parts[0];
+          const teacherCandidate = parts.slice(1).join(", ");
+          if (subjectCandidate && teacherCandidate) {
+            return {
+              subject: subjectCandidate,
+              teacher: teacherCandidate,
+              originalText: text,
+              type: "main",
+            };
+          }
+        }
+
+        // Original logic for CODE-based formats
         if (firstIsCode && parts.length >= 3) {
           const secondIsCode = /^[A-Z\u0110]{1,5}$/.test(parts[1] ?? "");
           const subjectPartsCount = secondIsCode ? 2 : 1;
@@ -610,6 +626,7 @@ export default function DashboardPage() {
           }
         }
 
+        const teacherCandidate = parts[parts.length - 1] ?? "";
         const subjectCandidate = parts.slice(0, -1).join("-");
         const teacherLooksLike =
           /[a-zà-ỹ.]/.test(teacherCandidate) || /[\s,]/.test(teacherCandidate);
@@ -982,7 +999,7 @@ export default function DashboardPage() {
 
           const maxTextWidth = w - 24;
           let subjectFontSize = 16;
-          const teacherFontSize = 11;
+          const teacherFontSize = Math.round(11 * cellTextScale);
           const hasTeacher = !removeTeacher && Boolean(cell.teacher);
           const lineGap = hasTeacher ? 6 : 0;
 
@@ -990,7 +1007,10 @@ export default function DashboardPage() {
 
           // Fit subject into up to 2 lines (avoid aggressive truncation like "Ngoại ngữ 2 (Trun...)").
           let subjectLines: string[] = [];
-          for (const size of [16, 15, 14]) {
+          const baseFontSizes = [16, 15, 14].map((s) =>
+            Math.round(s * cellTextScale),
+          );
+          for (const size of baseFontSizes) {
             subjectFontSize = size;
             ctx.font = `800 ${subjectFontSize}px system-ui, -apple-system, Segoe UI, Arial`;
             subjectLines = wrapLines(ctx, subject, maxTextWidth, 2);
@@ -1352,7 +1372,10 @@ export default function DashboardPage() {
                     CHỌN LỚP
                   </h3>
                 </div>
-                <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+                <div
+                  className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto custom-scrollbar pr-1"
+                  data-lenis-prevent
+                >
                   {allClasses.map((cls) => (
                     <motion.button
                       key={cls}
@@ -1733,7 +1756,8 @@ export default function DashboardPage() {
                   <div className="rounded-[24px] overflow-hidden">
                     <div
                       ref={previewOuterRef}
-                      className="no-scrollbar rounded-[24px] max-h-[70vh] overflow-auto pb-4"
+                      className="custom-scrollbar rounded-[24px] max-h-[70vh] overflow-auto pb-4"
+                      data-lenis-prevent
                     >
                       <div
                         className="mx-auto"
