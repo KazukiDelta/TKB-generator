@@ -218,23 +218,32 @@ export default function DashboardPage() {
       hadPersistedSettingsRef.current = true;
       const obj = parsed as Record<string, unknown>;
 
-      if (typeof obj.removeTeacher === "boolean") setRemoveTeacher(obj.removeTeacher);
-      if (typeof obj.highlightNN2 === "boolean") setHighlightNN2(obj.highlightNN2);
+      if (typeof obj.removeTeacher === "boolean")
+        setRemoveTeacher(obj.removeTeacher);
+      if (typeof obj.highlightNN2 === "boolean")
+        setHighlightNN2(obj.highlightNN2);
       if (typeof obj.nn2Color === "string") setNn2Color(obj.nn2Color);
       if (typeof obj.nn2Keywords === "string") setNn2Keywords(obj.nn2Keywords);
-      if (typeof obj.showWatermark === "boolean") setShowWatermark(obj.showWatermark);
-      if (typeof obj.showSettings === "boolean") setShowSettings(obj.showSettings);
+      if (typeof obj.showWatermark === "boolean")
+        setShowWatermark(obj.showWatermark);
+      if (typeof obj.showSettings === "boolean")
+        setShowSettings(obj.showSettings);
 
       if (typeof obj.themeId === "string") {
         const foundTheme = THEMES.find((t) => t.id === obj.themeId);
         if (foundTheme) setCurrentTheme(foundTheme);
       }
 
-      if (typeof obj.userPreviewZoom === "boolean") setUserPreviewZoom(obj.userPreviewZoom);
-      if (typeof obj.previewZoomScale === "number" && Number.isFinite(obj.previewZoomScale)) {
+      if (typeof obj.userPreviewZoom === "boolean")
+        setUserPreviewZoom(obj.userPreviewZoom);
+      if (
+        typeof obj.previewZoomScale === "number" &&
+        Number.isFinite(obj.previewZoomScale)
+      ) {
         setPreviewZoomScale(clamp(obj.previewZoomScale, 0.3, 2.5));
       }
-      if (typeof obj.zoomPercentInput === "string") setZoomPercentInput(obj.zoomPercentInput);
+      if (typeof obj.zoomPercentInput === "string")
+        setZoomPercentInput(obj.zoomPercentInput);
     } catch {
       // ignore
     } finally {
@@ -258,7 +267,10 @@ export default function DashboardPage() {
       zoomPercentInput,
     };
     try {
-      window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(payload));
+      window.localStorage.setItem(
+        SETTINGS_STORAGE_KEY,
+        JSON.stringify(payload),
+      );
     } catch {
       // ignore
     }
@@ -509,12 +521,10 @@ export default function DashboardPage() {
     if (!text) {
       return { subject: "", teacher: "", originalText: "", type: "empty" };
     }
-    const isActivity = /^(sinh hoạt|shđt|hoạt động|tự học|sinhhoạt)/i.test(
-      text,
-    );
+    const isActivity = /^(sinh hoạt|shđt|sinhhoạt)/i.test(text);
     if (isActivity) {
       return {
-        subject: "Sinh hoạt",
+        subject: "Sinh Hoạt Đầu Tuần",
         teacher: "",
         originalText: text,
         type: "activity",
@@ -1619,12 +1629,12 @@ export default function DashboardPage() {
                                 {Array.from({ length: 10 }).map((_, i) => (
                                   <div
                                     key={i}
-                                    className={`h-[70px] flex flex-col items-center justify-center text-xs font-bold ${currentTheme.timeColor}`}
+                                    className={`h-[70px] flex flex-col items-center justify-center text-sm font-bold ${currentTheme.timeColor}`}
                                   >
-                                    <span className="text-lg leading-none">
+                                    <span className="text-xl leading-none">
                                       {i < 5 ? i + 1 : i - 4}
                                     </span>
-                                    <span className="text-xs">
+                                    <span className="text-[11px]">
                                       {i < 5 ? "AM" : "PM"}
                                     </span>
                                   </div>
@@ -1646,7 +1656,7 @@ export default function DashboardPage() {
                                       className={`text-center pb-2 border-b ${currentTheme.divider}`}
                                     >
                                       <span
-                                        className={`text-sm font-black tracking-widest ${currentTheme.dayColor}`}
+                                        className={`text-base font-black tracking-widest ${currentTheme.dayColor}`}
                                       >
                                         {day}
                                       </span>
@@ -1711,14 +1721,14 @@ export default function DashboardPage() {
                                             {cell ? (
                                               <>
                                                 <span
-                                                  className={`font-bold text-sm leading-tight ${currentTheme.titleColor}`}
+                                                  className={`font-bold text-xl leading-tight ${currentTheme.titleColor}`}
                                                 >
                                                   {cell.subject}
                                                 </span>
                                                 {!removeTeacher &&
                                                   cell.teacher && (
                                                     <span
-                                                      className={`text-[10px] font-bold opacity-60 mt-1 px-2 py-0.5 rounded ${currentTheme.id === "light" ? "bg-black/5" : "bg-black/20"}`}
+                                                      className={`text-sm font-bold opacity-60 mt-1 px-2 py-0.5 rounded ${currentTheme.id === "light" ? "bg-black/5" : "bg-black/20"}`}
                                                     >
                                                       {cell.teacher}
                                                     </span>
