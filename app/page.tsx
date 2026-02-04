@@ -148,6 +148,19 @@ const clamp = (n: number, min: number, max: number) =>
 
 const SETTINGS_STORAGE_KEY = "tkb_generator_settings_v1";
 
+const TIME_SLOTS: Array<{ start: string; end: string }> = [
+  { start: "7:00", end: "7:45" },
+  { start: "7:50", end: "8:35" },
+  { start: "9:05", end: "9:50" },
+  { start: "9:55", end: "10:40" },
+  { start: "10:45", end: "11:30" },
+  { start: "12:50", end: "13:35" },
+  { start: "13:40", end: "14:25" },
+  { start: "14:30", end: "15:15" },
+  { start: "15:25", end: "16:10" },
+  { start: "16:15", end: "17:00" },
+];
+
 export default function DashboardPage() {
   const [file, setFile] = useState<File | null>(null);
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
@@ -165,6 +178,7 @@ export default function DashboardPage() {
   const [currentTheme, setCurrentTheme] = useState(THEMES[0]);
   const [showSettings, setShowSettings] = useState(false);
   const [showWatermark, setShowWatermark] = useState(true);
+  const [showSticker, setShowSticker] = useState(true);
   const [useImageLogo, setUseImageLogo] = useState(true);
   const [useLoadingGif, setUseLoadingGif] = useState(true);
   const [previewZoomScale, setPreviewZoomScale] = useState(1);
@@ -226,6 +240,7 @@ export default function DashboardPage() {
       if (typeof obj.nn2Keywords === "string") setNn2Keywords(obj.nn2Keywords);
       if (typeof obj.showWatermark === "boolean")
         setShowWatermark(obj.showWatermark);
+      if (typeof obj.showSticker === "boolean") setShowSticker(obj.showSticker);
       if (typeof obj.showSettings === "boolean")
         setShowSettings(obj.showSettings);
 
@@ -261,6 +276,7 @@ export default function DashboardPage() {
       nn2Keywords,
       themeId: currentTheme.id,
       showWatermark,
+      showSticker,
       showSettings,
       userPreviewZoom,
       previewZoomScale,
@@ -281,6 +297,7 @@ export default function DashboardPage() {
     nn2Keywords,
     currentTheme.id,
     showWatermark,
+    showSticker,
     showSettings,
     userPreviewZoom,
     previewZoomScale,
@@ -569,6 +586,14 @@ export default function DashboardPage() {
     setExporting(true);
     setTimeout(async () => {
       try {
+        const loadImage = (src: string) =>
+          new Promise<HTMLImageElement>((resolve, reject) => {
+            const img = new window.Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+            img.src = src;
+          });
+
         const isProbablyBlank = (canvas: HTMLCanvasElement) => {
           const ctx = canvas.getContext("2d", { willReadFrequently: true });
           if (!ctx) return false;
@@ -762,6 +787,34 @@ export default function DashboardPage() {
         const cellW = (gridW - timeColW - gutter * (colCount - 1)) / colCount;
         const cellH = (gridH - 46 - gutter * (rowCount - 1)) / rowCount;
 
+        // Sticker (logo)
+        if (showSticker) {
+          try {
+            const stickerImg = await loadImage("/logo.png");
+            const stickerSize = 96;
+            const stickerX = panelX + panelW - 48 - stickerSize;
+            const stickerY = Math.max(panelY + 56, gridTop - stickerSize - 18);
+
+            const scale = Math.min(
+              stickerSize / stickerImg.width,
+              stickerSize / stickerImg.height,
+            );
+            const drawW = stickerImg.width * scale;
+            const drawH = stickerImg.height * scale;
+            const drawX = stickerX + (stickerSize - drawW) / 2;
+            const drawY = stickerY + (stickerSize - drawH) / 2;
+
+            ctx.save();
+            drawRoundedRect(ctx, stickerX, stickerY, stickerSize, stickerSize, 20);
+            ctx.clip();
+            ctx.globalAlpha = 0.92;
+            ctx.drawImage(stickerImg, drawX, drawY, drawW, drawH);
+            ctx.restore();
+          } catch {
+            // ignore missing/broken logo
+          }
+        }
+
         // Day headers
         const days = ["MON", "TUE", "WED", "THU", "FRI", "SAT"];
         for (let d = 0; d < colCount; d++) {
@@ -780,11 +833,16 @@ export default function DashboardPage() {
         // Time labels
         for (let r = 0; r < rowCount; r++) {
           const y = gridTop + 46 + r * (cellH + gutter);
-          const label = r < 5 ? `${r + 1} AM` : `${r - 4} PM`;
           ctx.fillStyle = theme.textMuted;
+          const slot = TIME_SLOTS[r] ?? { start: `${r + 1}`, end: "" };
+          ctx.textAlign = "right";
           ctx.font =
-            "800 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
-          ctx.fillText(label, gridLeft, y + cellH / 2 + 6);
+            "800 13px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+          ctx.fillText(slot.start, gridLeft + timeColW - 10, y + 26);
+          ctx.font =
+            "700 12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+          ctx.fillText(`- ${slot.end}`, gridLeft + timeColW - 10, y + 42);
+          ctx.textAlign = "start";
         }
 
         const wrapLines = (
@@ -1334,6 +1392,12 @@ export default function DashboardPage() {
                           onClick={() => setShowWatermark(!showWatermark)}
                           icon={<Layers className="w-3 h-3" />}
                         />
+                        <EnhancedToggle
+                          label="Sticker Logo"
+                          active={showSticker}
+                          onClick={() => setShowSticker(!showSticker)}
+                          icon={<Layers className="w-3 h-3" />}
+                        />
                         {highlightNN2 && (
                           <motion.div
                             initial={{ opacity: 0, y: -10 }}
@@ -1586,6 +1650,18 @@ export default function DashboardPage() {
                             }}
                             className={`p-8 rounded-[24px] shadow-2xl relative overflow-hidden ${currentTheme.panelBg} border ${currentTheme.panelBorder}`}
                           >
+                            {showSticker && useImageLogo && (
+                              <>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src="/logo.png"
+                                  alt=""
+                                  width={96}
+                                  height={96}
+                                  className="absolute top-24 right-8 w-24 h-24 object-contain opacity-90 pointer-events-none select-none"
+                                />
+                              </>
+                            )}
                             <div className="flex justify-between items-end mb-5">
                               <div>
                                 <div className="flex items-center gap-3 mb-2">
@@ -1624,18 +1700,18 @@ export default function DashboardPage() {
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-[60px_1fr] gap-4">
+                            <div className="grid grid-cols-[110px_1fr] gap-4">
                               <div className="pt-11 space-y-2">
-                                {Array.from({ length: 10 }).map((_, i) => (
+                                {TIME_SLOTS.map((slot, i) => (
                                   <div
                                     key={i}
-                                    className={`h-[70px] flex flex-col items-center justify-center text-sm font-bold ${currentTheme.timeColor}`}
+                                    className={`h-[70px] flex flex-col items-end justify-center text-[11px] font-bold leading-tight pr-2 ${currentTheme.timeColor}`}
                                   >
-                                    <span className="text-xl leading-none">
-                                      {i < 5 ? i + 1 : i - 4}
+                                    <span className="text-[13px] leading-tight">
+                                      {slot.start}
                                     </span>
-                                    <span className="text-[11px]">
-                                      {i < 5 ? "AM" : "PM"}
+                                    <span className="text-[12px] opacity-80 leading-tight">
+                                      - {slot.end}
                                     </span>
                                   </div>
                                 ))}
