@@ -536,7 +536,7 @@ export default function TimetableCanvas({
       {/* Main Preview Outer Container - Styled like a sketchbook desk mat */}
       <div
         ref={outerWrapperRef}
-        className="w-full overflow-auto custom-scrollbar rounded-3xl border-2 border-[#2d2d2d] dark:border-[#383d4a] shadow-[6px_6px_0px_0px_#2d2d2d] dark:shadow-[6px_6px_0px_0px_#090a0f] bg-[#f5efe6] dark:bg-[#0c0d12] p-4 select-none min-h-[420px]"
+        className="w-full overflow-x-auto overflow-y-hidden overscroll-y-none custom-scrollbar rounded-3xl border-2 border-[#2d2d2d] dark:border-[#383d4a] shadow-[6px_6px_0px_0px_#2d2d2d] dark:shadow-[6px_6px_0px_0px_#090a0f] bg-[#f5efe6] dark:bg-[#0c0d12] p-4 select-none min-h-[420px]"
       >
         {/* w-fit min-w-full flex expands when zoomed, centers when smaller without clipping start */}
         <div className="w-fit min-w-full flex min-h-full">
