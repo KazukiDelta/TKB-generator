@@ -7,18 +7,18 @@ export default function LenisScroll() {
   useEffect(() => {
     // Ultra-luxurious "gliding on ice" (lướt trên băng) momentum inertia scroll
     const lenis = new Lenis({
-      duration: 1.4, // Generous glide duration
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // Exponential deceleration like ice skating
+      duration: 1.6, // Longer gliding glide
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // Luxurious exponential deceleration
       orientation: "vertical",
       gestureOrientation: "vertical",
       smoothWheel: true,
-      wheelMultiplier: 1.08, // Silky initial impulse
+      wheelMultiplier: 1.15, // Effortless glide impulse
       touchMultiplier: 1.8,
       infinite: false,
       prevent: (node: HTMLElement) => {
-        // Safely check if node or any parent container has data-lenis-prevent or is an inner scroll container
+        // Only prevent Lenis inside elements explicitly marked with data-lenis-prevent
         if (!node || typeof node.closest !== "function") return false;
-        return !!node.closest("[data-lenis-prevent], .custom-scrollbar, .overflow-y-auto, .overflow-auto");
+        return !!node.closest("[data-lenis-prevent]");
       },
     });
 
