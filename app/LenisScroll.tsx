@@ -45,11 +45,30 @@ export default function LenisScroll() {
       }
     }
 
+    function isInsideScrollable(target: HTMLElement | null): boolean {
+      let el: HTMLElement | null = target;
+      while (el && el !== document.body && el !== document.documentElement) {
+        if (
+          el.hasAttribute("data-lenis-prevent") ||
+          el.hasAttribute("data-scroll-prevent")
+        ) {
+          return true;
+        }
+        const style = window.getComputedStyle(el);
+        const isOverflowY = style.overflowY === "auto" || style.overflowY === "scroll";
+        if (isOverflowY && el.scrollHeight > el.clientHeight) {
+          return true;
+        }
+        el = el.parentElement;
+      }
+      return false;
+    }
+
     function handleWheel(e: WheelEvent) {
-      // Don't intercept horizontal or inside nested scrollable containers
-      // (modals, dropdowns marked with data-scroll-prevent)
+      // Don't intercept inside nested scrollable containers
+      // (modals, dropdowns, class selector marked with data-lenis-prevent or overflow-y-auto)
       const target = e.target as HTMLElement;
-      if (target?.closest?.("[data-scroll-prevent]")) return;
+      if (isInsideScrollable(target)) return;
 
       e.preventDefault();
 
