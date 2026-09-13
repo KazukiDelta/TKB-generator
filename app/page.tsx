@@ -677,9 +677,13 @@ export default function DashboardPage() {
 
           {/* RIGHT MAIN: Canvas Timetable Preview & Export */}
           <section className={`${isSidebarOpen ? "col-span-12 xl:col-span-9 lg:col-span-8" : "col-span-12"} space-y-3 sm:space-y-4 transition-all duration-300`}>
-            {/* Quick Class Switcher Bar (Visible on mobile/desktop whenever classes are loaded) */}
+            {/* Quick Class Switcher Bar (Only on mobile (< lg) OR when sidebar is collapsed to avoid clutter on desktop) */}
             {allClasses.length > 1 && (
-              <div className="hand-card p-2.5 sm:p-3 flex items-center gap-2 overflow-x-auto custom-scrollbar shadow-[3px_3px_0px_0px_#2d2d2d] dark:shadow-[3px_3px_0px_0px_#090a0f]">
+              <div
+                className={`hand-card p-2.5 sm:p-3 items-center gap-2 overflow-x-auto custom-scrollbar shadow-[3px_3px_0px_0px_#2d2d2d] dark:shadow-[3px_3px_0px_0px_#090a0f] ${
+                  isSidebarOpen ? "flex lg:hidden" : "flex"
+                }`}
+              >
                 <span className="font-kalam font-bold text-xs sm:text-sm text-[#2d2d2d] dark:text-[#f8fafc] whitespace-nowrap pl-1">
                   Đổi Lớp:
                 </span>
