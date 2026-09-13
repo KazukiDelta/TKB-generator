@@ -81,6 +81,7 @@ export default function TimetableCanvas({
     startRotation: number;
   }>({ centerX: 0, centerY: 0, startAngle: 0, startRotation: 0 });
   const [isExporting, setIsExporting] = useState(false);
+  const [isFullscreenPreview, setIsFullscreenPreview] = useState(false);
 
   // Single cell editing state
   const [editingCellInfo, setEditingCellInfo] = useState<{
@@ -91,10 +92,11 @@ export default function TimetableCanvas({
   // Auto-scale calculation to fit the outer container width
   const computeAutoScale = useCallback(() => {
     if (!outerWrapperRef.current) return;
-    const availableWidth = outerWrapperRef.current.clientWidth - 32; // 16px padding on sides
+    const padding = window.innerWidth < 640 ? 16 : 32;
+    const availableWidth = outerWrapperRef.current.clientWidth - padding;
     if (availableWidth <= 0) return;
     const autoScale = Math.min(1, availableWidth / BASE_CANVAS_WIDTH);
-    setPreviewScale(Math.max(0.2, Number(autoScale.toFixed(3))));
+    setPreviewScale(Math.max(0.18, Number(autoScale.toFixed(3))));
   }, []);
 
   // Recalculate auto scale on mount and on window resize
@@ -441,42 +443,42 @@ export default function TimetableCanvas({
       : null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {/* Top Action & Zoom Toolbar - High Contrast & Hand-Drawn Styled */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-[#181a20] border-2 border-[#2d2d2d] dark:border-[#383d4a] shadow-[3.5px_3.5px_0px_0px_#2d2d2d] dark:shadow-[3px_3px_0px_0px_#090a0f] text-[#2d2d2d] dark:text-[#f1f5f9]">
+      <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-2xl bg-white dark:bg-[#181a20] border-2 border-[#2d2d2d] dark:border-[#383d4a] shadow-[3px_3px_0px_0px_#2d2d2d] dark:shadow-[3px_3px_0px_0px_#090a0f] text-[#2d2d2d] dark:text-[#f1f5f9]">
         {/* Left: Status & Zoom Controls */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-sm font-bold font-patrick text-[#2d2d2d] dark:text-[#f1f5f9] px-2.5 py-1 rounded-xl bg-[#fdfbf7] dark:bg-[#13151d] border border-[#2d2d2d]/30 dark:border-white/20">
+        <div className="flex items-center gap-1.5 sm:gap-3">
+          <div className="hidden sm:flex items-center gap-2 text-sm font-bold font-patrick text-[#2d2d2d] dark:text-[#f1f5f9] px-2.5 py-1 rounded-xl bg-[#fdfbf7] dark:bg-[#13151d] border border-[#2d2d2d]/30 dark:border-white/20">
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="hidden sm:inline">Canvas WYSIWYG</span>
+            <span>Canvas</span>
           </div>
 
           {/* Zoom controls */}
-          <div className="flex items-center gap-1.5 bg-[#fdfbf7] dark:bg-[#13151d] p-1 rounded-xl border-2 border-[#2d2d2d] dark:border-[#383d4a] text-xs font-bold shadow-sm">
+          <div className="flex items-center gap-1 bg-[#fdfbf7] dark:bg-[#13151d] p-1 rounded-xl border-2 border-[#2d2d2d] dark:border-[#383d4a] text-xs font-bold shadow-sm">
             <button
               type="button"
               onClick={handleZoomOut}
               title="Thu nhỏ"
-              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-stone-200 dark:hover:bg-white/10 text-[#2d2d2d] dark:text-white transition-colors"
+              className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-lg hover:bg-stone-200 dark:hover:bg-white/10 text-[#2d2d2d] dark:text-white transition-colors"
             >
-              <ZoomOut className="w-4 h-4 stroke-[2.5]" />
+              <ZoomOut className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5]" />
             </button>
-            <span className="w-12 text-center font-mono font-bold text-sm text-[#2d2d2d] dark:text-white">
+            <span className="w-9 sm:w-12 text-center font-mono font-bold text-xs sm:text-sm text-[#2d2d2d] dark:text-white">
               {Math.round(previewScale * 100)}%
             </span>
             <button
               type="button"
               onClick={handleZoomIn}
               title="Phóng to"
-              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-stone-200 dark:hover:bg-white/10 text-[#2d2d2d] dark:text-white transition-colors"
+              className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-lg hover:bg-stone-200 dark:hover:bg-white/10 text-[#2d2d2d] dark:text-white transition-colors"
             >
-              <ZoomIn className="w-4 h-4 stroke-[2.5]" />
+              <ZoomIn className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5]" />
             </button>
             <button
               type="button"
               onClick={handleResetAutoZoom}
               title="Vừa màn hình (Auto)"
-              className={`px-2.5 py-1 rounded-lg text-xs font-black tracking-wider uppercase transition-all ${
+              className={`px-2 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-black tracking-wider uppercase transition-all ${
                 !isUserZoom
                   ? "bg-[#2d5da1] dark:bg-cyan-500 text-white dark:text-black shadow-sm"
                   : "bg-stone-200 dark:bg-white/10 text-[#2d2d2d] dark:text-white hover:bg-stone-300"
@@ -485,40 +487,55 @@ export default function TimetableCanvas({
               Auto
             </button>
           </div>
+
+          {/* Fullscreen Preview Trigger Button */}
+          <button
+            type="button"
+            onClick={() => setIsFullscreenPreview(true)}
+            title="Xem Toàn Màn Hình TKB"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#fef08a] dark:bg-[#2b271d] text-[#2d2d2d] dark:text-[#fef08a] border-2 border-[#2d2d2d] dark:border-[#facc15] font-patrick font-bold text-xs sm:text-sm shadow-[2px_2px_0px_0px_#2d2d2d] dark:shadow-[1.5px_1.5px_0px_0px_#090a0f] hover:-rotate-1 active:translate-x-[1px] active:translate-y-[1px] transition-all"
+          >
+            <Maximize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5]" />
+            <span className="hidden xs:inline sm:inline">Xem Toàn Màn</span>
+          </button>
         </div>
 
         {/* Right: Actions - High Contrast, Bold, Ultra Readable Buttons */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 flex-wrap">
           {onToggleSidebar && (
             <button
               type="button"
               onClick={onToggleSidebar}
-              title={isSidebarOpen ? "Thu gọn thanh công cụ bên trái để TKB to ra tối đa" : "Mở lại thanh công cụ"}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white dark:bg-[#1e222e] text-[#2d2d2d] dark:text-white border-2 border-[#2d2d2d] dark:border-[#383d4a] font-bold text-sm shadow-[2px_2px_0px_0px_#2d2d2d] dark:shadow-[2px_2px_0px_0px_#090a0f] hover:bg-stone-100 transition-all active:translate-x-[1px] active:translate-y-[1px]"
+              title={isSidebarOpen ? "Thu gọn bảng công cụ bên trái để TKB to ra" : "Mở lại bảng công cụ"}
+              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-[#1e222e] text-[#2d2d2d] dark:text-white border-2 border-[#2d2d2d] dark:border-[#383d4a] font-bold text-sm shadow-[2px_2px_0px_0px_#2d2d2d] dark:shadow-[2px_2px_0px_0px_#090a0f] hover:bg-stone-100 transition-all active:translate-x-[1px] active:translate-y-[1px]"
             >
               {isSidebarOpen ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
               <span>{isSidebarOpen ? "Phóng To TKB" : "Hiện Menu"}</span>
             </button>
           )}
 
-          {/* Chỉnh Sửa TKB Button - Crisp Bold Blue Hand Button */}
+          {/* Chỉnh Sửa TKB Button */}
           <button
             type="button"
             onClick={onOpenScheduleEditor}
-            className="hand-btn px-4 py-2 bg-white dark:bg-[#181a20] text-[#0284c7] dark:text-[#38bdf8] border-[2.5px] border-[#2d2d2d] dark:border-[#38bdf8] font-patrick text-base font-bold shadow-[3px_3px_0px_0px_#2d2d2d] dark:shadow-[2.5px_2.5px_0px_0px_#090a0f] hover:bg-[#e0f2fe] dark:hover:bg-[#0c2d48] hover:-rotate-1 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+            title="Chỉnh Sửa Thời Khóa Biểu"
+            className="hand-btn px-2.5 sm:px-3.5 py-1.5 bg-white dark:bg-[#181a20] text-[#0284c7] dark:text-[#38bdf8] border-2 border-[#2d2d2d] dark:border-[#38bdf8] font-patrick text-xs sm:text-base font-bold shadow-[2.5px_2.5px_0px_0px_#2d2d2d] dark:shadow-[2px_2px_0px_0px_#090a0f] hover:bg-[#e0f2fe] dark:hover:bg-[#0c2d48] hover:-rotate-1 active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-1"
           >
-            <Edit3 className="w-5 h-5 stroke-[2.5]" />
-            <span>Chỉnh Sửa TKB</span>
+            <Edit3 className="w-4 h-4 stroke-[2.5]" />
+            <span className="hidden sm:inline">Chỉnh Sửa TKB</span>
+            <span className="sm:hidden">Sửa</span>
           </button>
 
-          {/* Thêm Sticker Button - Crisp Bold Purple Hand Button */}
+          {/* Thêm Sticker Button */}
           <button
             type="button"
             onClick={onOpenStickerManager}
-            className="hand-btn px-4 py-2 bg-white dark:bg-[#181a20] text-[#7c3aed] dark:text-[#c084fc] border-[2.5px] border-[#2d2d2d] dark:border-[#c084fc] font-patrick text-base font-bold shadow-[3px_3px_0px_0px_#2d2d2d] dark:shadow-[2.5px_2.5px_0px_0px_#090a0f] hover:bg-[#f3e8ff] dark:hover:bg-[#2e1065] hover:-rotate-1 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+            title="Trang Trí Sticker"
+            className="hand-btn px-2.5 sm:px-3.5 py-1.5 bg-white dark:bg-[#181a20] text-[#7c3aed] dark:text-[#c084fc] border-2 border-[#2d2d2d] dark:border-[#c084fc] font-patrick text-xs sm:text-base font-bold shadow-[2.5px_2.5px_0px_0px_#2d2d2d] dark:shadow-[2px_2px_0px_0px_#090a0f] hover:bg-[#f3e8ff] dark:hover:bg-[#2e1065] hover:-rotate-1 active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all flex items-center gap-1"
           >
-            <Sparkles className="w-5 h-5 text-[#7c3aed] dark:text-[#c084fc] stroke-[2.5]" />
-            <span>Thêm Sticker ({stickers.length})</span>
+            <Sparkles className="w-4 h-4 text-[#7c3aed] dark:text-[#c084fc] stroke-[2.5]" />
+            <span className="hidden sm:inline">Sticker ({stickers.length})</span>
+            <span className="sm:hidden">Sticker</span>
           </button>
 
           {/* Tải Ảnh PNG Button - Bold Red Marker Solid */}
@@ -526,10 +543,11 @@ export default function TimetableCanvas({
             type="button"
             onClick={handleExportHighRes}
             disabled={isExporting || !schedule}
-            className="hand-btn px-5 py-2 bg-[#ff4d4d] hover:bg-[#ef4444] text-white border-[2.5px] border-[#2d2d2d] font-patrick text-base font-black shadow-[3.5px_3.5px_0px_0px_#2d2d2d] dark:shadow-[2.5px_2.5px_0px_0px_#090a0f] hover:-rotate-1 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Xuất file ảnh PNG chất lượng cao"
+            className="hand-btn px-3 sm:px-5 py-1.5 sm:py-2 bg-[#ff4d4d] hover:bg-[#ef4444] text-white border-2 border-[#2d2d2d] font-patrick text-xs sm:text-base font-black shadow-[3px_3px_0px_0px_#2d2d2d] dark:shadow-[2px_2px_0px_0px_#090a0f] hover:-rotate-1 active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
           >
-            <Download className="w-5 h-5 stroke-[3]" />
-            <span>{isExporting ? "Đang xuất..." : "Tải Ảnh PNG"}</span>
+            <Download className="w-4 h-4 sm:w-5 sm:h-5 stroke-[3]" />
+            <span>{isExporting ? "Đang xuất..." : "Tải PNG"}</span>
           </button>
         </div>
       </div>
@@ -537,7 +555,7 @@ export default function TimetableCanvas({
       {/* Main Preview Outer Container - Styled like a sketchbook desk mat */}
       <div
         ref={outerWrapperRef}
-        className="w-full overflow-x-auto custom-scrollbar rounded-3xl border-2 border-[#2d2d2d] dark:border-[#383d4a] shadow-[6px_6px_0px_0px_#2d2d2d] dark:shadow-[6px_6px_0px_0px_#090a0f] bg-[#f5efe6] dark:bg-[#0c0d12] p-4 select-none min-h-[420px]"
+        className="w-full overflow-x-auto custom-scrollbar rounded-2xl sm:rounded-3xl border-2 border-[#2d2d2d] dark:border-[#383d4a] shadow-[4px_4px_0px_0px_#2d2d2d] sm:shadow-[6px_6px_0px_0px_#2d2d2d] dark:shadow-[4px_4px_0px_0px_#090a0f] bg-[#f5efe6] dark:bg-[#0c0d12] p-2 sm:p-4 select-none min-h-[260px] sm:min-h-[420px]"
       >
         {/* w-fit min-w-full flex expands when zoomed, centers when smaller without clipping start */}
         <div className="w-fit min-w-full flex min-h-full">
@@ -547,7 +565,7 @@ export default function TimetableCanvas({
               height: scaledHeight,
               flexShrink: 0,
             }}
-            className="relative rounded-2xl shadow-xl overflow-hidden m-auto"
+            className="relative rounded-xl sm:rounded-2xl shadow-xl overflow-hidden m-auto"
           >
             {/* Inner 1920x1080 element scaled down */}
             <div
@@ -607,7 +625,7 @@ export default function TimetableCanvas({
                       className="w-full h-full object-contain pointer-events-none select-none drop-shadow-md"
                     />
 
-                    {/* Bottom Center Rotation Drag Handle (Canva style - opposite side from toolbar) */}
+                    {/* Bottom Center Rotation Drag Handle */}
                     {isSelected && (
                       <div
                         onPointerDown={(e) => handleRotateHandlePointerDown(e, sticker)}
@@ -632,7 +650,7 @@ export default function TimetableCanvas({
                       </div>
                     )}
 
-                    {/* Sticker mini-toolbar when selected - stays horizontal and readable */}
+                    {/* Sticker mini-toolbar when selected */}
                     {isSelected && (
                       <div
                         onPointerDown={(e) => e.stopPropagation()}
@@ -710,9 +728,9 @@ export default function TimetableCanvas({
       </div>
 
       {/* Helper text under canvas */}
-      <div className="flex flex-wrap items-center justify-between text-sm text-[#2d2d2d]/80 dark:text-[#cbd5e1] px-2 gap-2 font-bold font-patrick">
+      <div className="flex flex-wrap items-center justify-between text-xs sm:text-sm text-[#2d2d2d]/80 dark:text-[#cbd5e1] px-1 sm:px-2 gap-1.5 sm:gap-2 font-bold font-patrick">
         <p>
-          💡 <strong>Mẹo tương tác:</strong> Nhấp vào ô để sửa môn học • Kéo sticker để di chuyển, kéo nút tròn góc để phóng to/thu nhỏ sticker, hoặc bấm xoay trên thanh công cụ.
+          💡 <strong>Mẹo:</strong> Nhấp vào ô để sửa môn • Kéo sticker để di chuyển, kéo nút tròn để chỉnh kích thước.
         </p>
         {selectedSticker && (
           <span className="text-[#2d5da1] dark:text-[#38bdf8] font-bold">
@@ -720,6 +738,81 @@ export default function TimetableCanvas({
           </span>
         )}
       </div>
+
+      {/* Fullscreen Lightbox Preview Modal */}
+      {isFullscreenPreview && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col p-2 sm:p-6 animate-in fade-in duration-200">
+          {/* Header Controls */}
+          <div className="flex items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl bg-[#fdfbf7] dark:bg-[#181a20] border-2 border-[#2d2d2d] dark:border-[#383d4a] shadow-[4px_4px_0px_0px_#2d2d2d] mb-2 sm:mb-4">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <span className="px-2.5 py-1 rounded-xl bg-[#ff4d4d] text-white font-bold font-kalam text-xs sm:text-sm shadow-sm -rotate-1 shrink-0">
+                Toàn Màn Hình
+              </span>
+              <h3 className="font-kalam font-bold text-base sm:text-xl text-[#2d2d2d] dark:text-white truncate">
+                Lớp: {selectedClass || "TKB"}
+              </h3>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleExportHighRes}
+                disabled={isExporting || !schedule}
+                className="hand-btn px-3 sm:px-4 py-1.5 bg-[#ff4d4d] text-white font-patrick font-black text-xs sm:text-sm flex items-center gap-1.5"
+              >
+                <Download className="w-4 h-4 stroke-[3]" />
+                <span>{isExporting ? "Đang xuất..." : "Tải Ảnh PNG"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsFullscreenPreview(false)}
+                className="p-2 rounded-xl bg-white dark:bg-[#27272a] border-2 border-[#2d2d2d] text-[#2d2d2d] dark:text-white hover:bg-[#ff4d4d] hover:text-white transition-all shadow-[2px_2px_0px_0px_#2d2d2d]"
+                title="Đóng (Esc)"
+              >
+                <Minimize2 className="w-5 h-5 stroke-[2.5]" />
+              </button>
+            </div>
+          </div>
+
+          {/* Scrollable / Zoomable Fullscreen Canvas Viewport */}
+          <div className="flex-1 overflow-auto custom-scrollbar rounded-2xl border-2 border-white/20 bg-stone-900/60 p-2 sm:p-6 flex items-center justify-center">
+            <div
+              style={{
+                width: Math.min(window.innerWidth - 32, 1920),
+                height: ((Math.min(window.innerWidth - 32, 1920)) * 1080) / 1920,
+              }}
+              className="relative rounded-2xl overflow-hidden shadow-2xl m-auto"
+            >
+              {/* Scaled canvas copy for fullscreen */}
+              <div
+                style={{
+                  width: BASE_CANVAS_WIDTH,
+                  height: BASE_CANVAS_HEIGHT,
+                  transform: `scale(${Math.min(1, (window.innerWidth - 32) / BASE_CANVAS_WIDTH)})`,
+                  transformOrigin: "top left",
+                }}
+                className="relative"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <canvas
+                  ref={(node) => {
+                    if (node && schedule) {
+                      renderTimetableToCanvas(node, schedule, selectedClass, theme, stickers, {
+                        ...options,
+                        scaleFactor: 1,
+                      });
+                    }
+                  }}
+                  width={BASE_CANVAS_WIDTH}
+                  height={BASE_CANVAS_HEIGHT}
+                  className="block"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Single Cell Quick Edit Modal */}
       {editingCellInfo && (

@@ -133,6 +133,14 @@ export default function DashboardPage() {
   const [isScheduleEditorOpen, setIsScheduleEditorOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isDonateOpen, setIsDonateOpen] = useState(false);
+  const [classSearch, setClassSearch] = useState("");
+
+  // Auto collapse sidebar on mobile so TKB is immediately visible
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      setIsSidebarOpen(false);
+    }
+  }, []);
 
   // Restore saved preferences from LocalStorage
   useEffect(() => {
@@ -516,55 +524,68 @@ export default function DashboardPage() {
 
               {/* Class Selector Card */}
               {allClasses.length > 0 && (
-                <div className="hand-card p-5 space-y-3">
+                <div className="hand-card p-3.5 sm:p-5 space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-bold font-kalam text-[#2d2d2d] dark:text-[#f8fafc]">
+                    <h3 className="text-base sm:text-lg font-bold font-kalam text-[#2d2d2d] dark:text-[#f8fafc]">
                       Chọn Lớp ({allClasses.length})
                     </h3>
-                    <span className="text-base font-bold font-patrick text-[#ff4d4d]">
+                    <span className="text-sm sm:text-base font-bold font-patrick text-[#ff4d4d]">
                       {selectedClass || "Chưa chọn"}
                     </span>
                   </div>
 
+                  {/* Search input for classes if many classes */}
+                  {allClasses.length > 6 && (
+                    <input
+                      type="text"
+                      value={classSearch}
+                      onChange={(e) => setClassSearch(e.target.value)}
+                      placeholder="🔍 Tìm nhanh tên lớp..."
+                      className="w-full px-3 py-1.5 rounded-xl border-2 border-[#2d2d2d]/30 dark:border-white/20 bg-white dark:bg-[#181a24] text-xs sm:text-sm font-patrick font-bold text-[#2d2d2d] dark:text-white focus:outline-none focus:border-[#2d5da1]"
+                    />
+                  )}
+
                   <div
                     data-lenis-prevent
-                    className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-56 overflow-y-auto custom-scrollbar p-1"
+                    className="grid grid-cols-3 sm:grid-cols-4 gap-1.5 sm:gap-2 max-h-52 overflow-y-auto custom-scrollbar p-1"
                   >
-                    {allClasses.map((cls) => (
-                      <button
-                        key={cls}
-                        type="button"
-                        onClick={() => handleSelectClass(cls)}
-                        className={`hand-wobbly-sm px-2.5 py-2 text-base font-bold font-patrick transition-all truncate border-2 border-[#2d2d2d] ${
-                          selectedClass === cls
-                            ? "bg-[#ff4d4d] text-white shadow-[2.5px_2.5px_0px_0px_#2d2d2d] dark:shadow-[2px_2px_0px_0px_#090a0f] -rotate-1"
-                            : "bg-white dark:bg-[#1e222e] hover:bg-[#fff9c4] dark:hover:bg-[#282e3f] text-[#2d2d2d] dark:text-[#e2e8f0] dark:border-[#383e52] shadow-[1.5px_1.5px_0px_0px_#2d2d2d] dark:shadow-[1.5px_1.5px_0px_0px_#090a0f] hover:-rotate-1"
-                        }`}
-                      >
-                        {cls}
-                      </button>
-                    ))}
+                    {allClasses
+                      .filter((cls) => cls.toLowerCase().includes(classSearch.toLowerCase()))
+                      .map((cls) => (
+                        <button
+                          key={cls}
+                          type="button"
+                          onClick={() => handleSelectClass(cls)}
+                          className={`hand-wobbly-sm px-2 py-1.5 text-sm sm:text-base font-bold font-patrick transition-all truncate border-2 border-[#2d2d2d] ${
+                            selectedClass === cls
+                              ? "bg-[#ff4d4d] text-white shadow-[2px_2px_0px_0px_#2d2d2d] dark:shadow-[2px_2px_0px_0px_#090a0f] -rotate-1"
+                              : "bg-white dark:bg-[#1e222e] hover:bg-[#fff9c4] dark:hover:bg-[#282e3f] text-[#2d2d2d] dark:text-[#e2e8f0] dark:border-[#383e52] shadow-[1.5px_1.5px_0px_0px_#2d2d2d] dark:shadow-[1.5px_1.5px_0px_0px_#090a0f] hover:-rotate-1"
+                          }`}
+                        >
+                          {cls}
+                        </button>
+                      ))}
                   </div>
                 </div>
               )}
 
               {/* Quick Edit Schedule Shortcut Card */}
               {processedSchedule && (
-                <div className="hand-card p-4 flex items-center justify-between bg-[#f0f9ff] dark:bg-[#142030] border-2 border-[#2d2d2d] dark:border-[#0284c7]">
-                  <div className="flex items-center gap-3">
+                <div className="hand-card p-3.5 sm:p-4 flex items-center justify-between bg-[#f0f9ff] dark:bg-[#142030] border-2 border-[#2d2d2d] dark:border-[#0284c7]">
+                  <div className="flex items-center gap-2.5 sm:gap-3">
                     <div className="p-2 rounded-xl bg-white dark:bg-[#1e222e] border-2 border-[#2d2d2d] dark:border-[#383e52] text-[#2d5da1] dark:text-[#38bdf8] shadow-[2px_2px_0px_0px_#2d2d2d] dark:shadow-[2px_2px_0px_0px_#090a0f]">
-                      <Edit3 className="w-5 h-5" />
+                      <Edit3 className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <div>
-                      <h4 className="text-base font-bold font-kalam text-[#2d2d2d] dark:text-[#f8fafc]">Chỉnh Sửa TKB</h4>
-                      <p className="text-sm font-patrick text-[#2d2d2d]/60 dark:text-[#94a3b8]">Sửa môn, GV hoặc thêm bớt tiết</p>
+                      <h4 className="text-sm sm:text-base font-bold font-kalam text-[#2d2d2d] dark:text-[#f8fafc]">Chỉnh Sửa TKB</h4>
+                      <p className="text-xs sm:text-sm font-patrick text-[#2d2d2d]/60 dark:text-[#94a3b8]">Sửa môn, GV hoặc thêm bớt tiết</p>
                     </div>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => setIsScheduleEditorOpen(true)}
-                    className="hand-btn hand-btn-blue text-base font-bold px-3.5 py-1.5"
+                    className="hand-btn hand-btn-blue text-xs sm:text-base font-bold px-3 sm:px-3.5 py-1.5 shrink-0"
                   >
                     Mở Bảng Sửa
                   </button>
@@ -572,15 +593,15 @@ export default function DashboardPage() {
               )}
 
               {/* Theme Selector Card */}
-              <div className="hand-card p-5 space-y-4">
+              <div className="hand-card p-3.5 sm:p-5 space-y-3 sm:space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Palette className="w-5 h-5 text-[#2d5da1] dark:text-[#38bdf8]" />
-                    <h3 className="text-lg font-bold font-kalam text-[#2d2d2d] dark:text-[#f8fafc]">
+                    <Palette className="w-4 h-4 sm:w-5 sm:h-5 text-[#2d5da1] dark:text-[#38bdf8]" />
+                    <h3 className="text-base sm:text-lg font-bold font-kalam text-[#2d2d2d] dark:text-[#f8fafc]">
                       Giao Diện (Theme)
                     </h3>
                   </div>
-                  <span className="text-base font-bold font-patrick text-[#2d5da1] dark:text-[#38bdf8]">
+                  <span className="text-sm sm:text-base font-bold font-patrick text-[#2d5da1] dark:text-[#38bdf8]">
                     {currentTheme.shortName || currentTheme.name}
                   </span>
                 </div>
@@ -592,52 +613,52 @@ export default function DashboardPage() {
               </div>
 
               {/* Sticker Button Shortcut */}
-              <div className="hand-card p-5 flex items-center justify-between">
-                <div className="flex items-center gap-3">
+              <div className="hand-card p-3.5 sm:p-5 flex items-center justify-between">
+                <div className="flex items-center gap-2.5 sm:gap-3">
                   <div className="p-2 rounded-xl bg-white dark:bg-[#1e222e] border-2 border-[#2d2d2d] dark:border-[#383e52] text-[#ff4d4d] shadow-[2px_2px_0px_0px_#2d2d2d] dark:shadow-[2px_2px_0px_0px_#090a0f]">
-                    <Sparkles className="w-5 h-5" />
+                    <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
                   <div>
-                    <h4 className="text-base font-bold font-kalam text-[#2d2d2d] dark:text-[#f8fafc]">Trang Trí Sticker</h4>
-                    <p className="text-sm font-patrick text-[#2d2d2d]/60 dark:text-[#94a3b8]">{stickers.length} sticker trên TKB</p>
+                    <h4 className="text-sm sm:text-base font-bold font-kalam text-[#2d2d2d] dark:text-[#f8fafc]">Trang Trí Sticker</h4>
+                    <p className="text-xs sm:text-sm font-patrick text-[#2d2d2d]/60 dark:text-[#94a3b8]">{stickers.length} sticker trên TKB</p>
                   </div>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => setIsStickerManagerOpen(true)}
-                  className="hand-btn text-base font-bold px-4 py-2"
+                  className="hand-btn text-xs sm:text-base font-bold px-3 sm:px-4 py-1.5 sm:py-2"
                 >
                   Mở Quản Lý
                 </button>
               </div>
 
               {/* Donate Creator Card */}
-              <div className="hand-card-yellow hand-thumbtack p-4 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
+              <div className="hand-card-yellow hand-thumbtack p-3.5 sm:p-4 flex items-center justify-between">
+                <div className="flex items-center gap-2 sm:gap-2.5">
                   <div className="p-2 rounded-xl bg-white border-2 border-[#2d2d2d] text-[#ff4d4d] shadow-[2px_2px_0px_0px_#2d2d2d]">
-                    <Heart className="w-5 h-5 fill-[#ff4d4d]/30" />
+                    <Heart className="w-4 h-4 sm:w-5 sm:h-5 fill-[#ff4d4d]/30" />
                   </div>
                   <div>
-                    <h4 className="text-base font-bold font-kalam text-[#2d2d2d]">Ủng Hộ Creator</h4>
-                    <p className="text-sm font-patrick text-[#2d2d2d]/75 font-semibold">Mời ly trà sữa / cà phê</p>
+                    <h4 className="text-sm sm:text-base font-bold font-kalam text-[#2d2d2d]">Ủng Hộ Creator</h4>
+                    <p className="text-xs sm:text-sm font-patrick text-[#2d2d2d]/75 font-semibold">Mời ly trà sữa / cà phê</p>
                   </div>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => setIsDonateOpen(true)}
-                  className="hand-btn text-base font-bold px-4 py-1.5 bg-[#ff4d4d] text-white hover:bg-[#e11d48]"
+                  className="hand-btn text-xs sm:text-base font-bold px-3 sm:px-4 py-1.5 bg-[#ff4d4d] text-white hover:bg-[#e11d48]"
                 >
                   Donate
                 </button>
               </div>
 
               {/* Discreet Admin Entry */}
-              <div className="pt-2 text-center">
+              <div className="pt-1 sm:pt-2 text-center">
                 <Link
                   href="/admin"
-                  className="inline-flex items-center gap-1.5 text-sm font-bold font-patrick text-[#2d2d2d]/50 dark:text-white/60 hover:text-[#ff4d4d] dark:hover:text-[#ff4d4d] transition-colors"
+                  className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold font-patrick text-[#2d2d2d]/50 dark:text-white/60 hover:text-[#ff4d4d] dark:hover:text-[#ff4d4d] transition-colors"
                   title="Cổng Quản Trị Hệ Thống"
                 >
                   <Lock className="w-3.5 h-3.5" />
@@ -648,24 +669,49 @@ export default function DashboardPage() {
           )}
 
           {/* RIGHT MAIN: Canvas Timetable Preview & Export */}
-          <section className={`${isSidebarOpen ? "col-span-12 xl:col-span-9 lg:col-span-8" : "col-span-12"} space-y-4 transition-all duration-300`}>
-            {/* Floating button when sidebar is collapsed to re-open easily */}
+          <section className={`${isSidebarOpen ? "col-span-12 xl:col-span-9 lg:col-span-8" : "col-span-12"} space-y-3 sm:space-y-4 transition-all duration-300`}>
+            {/* Quick Class Switcher Bar (Visible on mobile/desktop whenever classes are loaded) */}
+            {allClasses.length > 1 && (
+              <div className="hand-card p-2.5 sm:p-3 flex items-center gap-2 overflow-x-auto custom-scrollbar shadow-[3px_3px_0px_0px_#2d2d2d] dark:shadow-[3px_3px_0px_0px_#090a0f]">
+                <span className="font-kalam font-bold text-xs sm:text-sm text-[#2d2d2d] dark:text-[#f8fafc] whitespace-nowrap pl-1">
+                  Đổi Lớp:
+                </span>
+                <div className="flex items-center gap-1.5">
+                  {allClasses.map((cls) => (
+                    <button
+                      key={cls}
+                      type="button"
+                      onClick={() => handleSelectClass(cls)}
+                      className={`px-3 py-1 rounded-xl text-xs sm:text-sm font-bold font-patrick transition-all whitespace-nowrap border-2 ${
+                        selectedClass === cls
+                          ? "bg-[#ff4d4d] text-white border-[#2d2d2d] shadow-[2px_2px_0px_0px_#2d2d2d] -rotate-1"
+                          : "bg-white dark:bg-[#181a24] text-[#2d2d2d] dark:text-[#cbd5e1] border-[#2d2d2d]/30 dark:border-white/20 hover:bg-[#fff9c4]"
+                      }`}
+                    >
+                      {cls}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Floating banner when sidebar is collapsed */}
             {!isSidebarOpen && (
-              <div className="hand-card p-3.5 px-5 flex flex-wrap items-center justify-between text-base font-patrick font-bold shadow-[4px_4px_0px_0px_#2d2d2d]">
-                <div className="flex items-center gap-3">
-                  <span className="inline-block w-3 h-3 rounded-full bg-[#ff4d4d] border-[1.5px] border-[#2d2d2d] animate-pulse" />
-                  <span className="font-kalam text-lg text-[#2d2d2d]">Chế độ Phóng To TKB</span>
+              <div className="hand-card p-2.5 sm:p-3.5 px-3 sm:px-5 flex flex-wrap items-center justify-between text-sm sm:text-base font-patrick font-bold shadow-[3px_3px_0px_0px_#2d2d2d] gap-2">
+                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                  <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#ff4d4d] border-[1.5px] border-[#2d2d2d] animate-pulse" />
+                  <span className="font-kalam text-base sm:text-lg text-[#2d2d2d]">Phóng To TKB</span>
                   <span className="text-[#2d2d2d]/30">•</span>
                   <span className="text-[#2d2d2d]">Lớp: {selectedClass || "Chưa chọn"}</span>
-                  <span className="text-[#2d2d2d]/30">•</span>
-                  <span className="text-[#2d5da1]">{currentTheme.shortName || currentTheme.name}</span>
+                  <span className="text-[#2d2d2d]/30 hidden sm:inline">•</span>
+                  <span className="text-[#2d5da1] hidden sm:inline">{currentTheme.shortName || currentTheme.name}</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsSidebarOpen(true)}
-                  className="hand-btn text-base font-bold px-4 py-1.5 bg-[#fef08a]"
+                  className="hand-btn text-xs sm:text-base font-bold px-3 sm:px-4 py-1 sm:py-1.5 bg-[#fef08a]"
                 >
-                  <span>☰ Mở Lại Bảng Công Cụ</span>
+                  <span>☰ Bảng Công Cụ</span>
                 </button>
               </div>
             )}

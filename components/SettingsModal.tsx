@@ -21,22 +21,22 @@ export default function SettingsModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg bg-[#fff9c4] border-[3px] border-[#2d2d2d] rounded-3xl shadow-[8px_8px_0px_0px_#2d2d2d] overflow-hidden text-[#2d2d2d] hand-wobbly-1">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/55 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-lg bg-[#fff9c4] border-[3px] border-[#2d2d2d] rounded-2xl sm:rounded-3xl shadow-[6px_6px_0px_0px_#2d2d2d] sm:shadow-[8px_8px_0px_0px_#2d2d2d] overflow-hidden text-[#2d2d2d] hand-wobbly-1 max-h-[92vh] flex flex-col">
         {/* Hand tape decoration */}
-        <div className="hand-tape -top-2 left-1/2 -translate-x-1/2 !w-32 z-10" />
+        <div className="hand-tape -top-2 left-1/2 -translate-x-1/2 !w-28 sm:!w-32 z-10" />
 
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b-[2.5px] border-[#2d2d2d] bg-[#fff59d]/50">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-white border-2 border-[#2d2d2d] text-[#2d5da1] shadow-[2px_2px_0px_0px_#2d2d2d]">
-              <Settings className="w-6 h-6 stroke-[2.5]" />
+        <div className="flex items-center justify-between p-3.5 sm:p-6 border-b-[2.5px] border-[#2d2d2d] bg-[#fff59d]/50 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-white border-2 border-[#2d2d2d] text-[#2d5da1] shadow-[2px_2px_0px_0px_#2d2d2d] shrink-0">
+              <Settings className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5]" />
             </div>
-            <div>
-              <h3 className="text-2xl font-bold font-kalam text-[#2d2d2d] leading-none">
+            <div className="min-w-0">
+              <h3 className="text-lg sm:text-2xl font-bold font-kalam text-[#2d2d2d] leading-none truncate">
                 Cài Đặt Thời Khóa Biểu
               </h3>
-              <p className="text-sm font-patrick text-[#2d2d2d]/80 mt-1">
+              <p className="text-xs sm:text-sm font-patrick text-[#2d2d2d]/80 mt-0.5 truncate hidden sm:block">
                 Tùy biến hiển thị môn học, giáo viên và cỡ chữ
               </p>
             </div>
@@ -45,7 +45,7 @@ export default function SettingsModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl bg-white border-2 border-[#2d2d2d] text-[#2d2d2d] hover:bg-[#ff4d4d] hover:text-white transition-all shadow-[2px_2px_0px_0px_#2d2d2d] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+            className="p-1.5 sm:p-2 rounded-xl bg-white border-2 border-[#2d2d2d] text-[#2d2d2d] hover:bg-[#ff4d4d] hover:text-white transition-all shadow-[2px_2px_0px_0px_#2d2d2d] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none shrink-0 ml-2"
             title="Đóng"
           >
             <X className="w-5 h-5 stroke-[2.5]" />
@@ -53,7 +53,7 @@ export default function SettingsModal({
         </div>
 
         {/* Settings Body */}
-        <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar font-patrick">
+        <div className="p-3.5 sm:p-6 space-y-3.5 sm:space-y-4 flex-1 overflow-y-auto custom-scrollbar font-patrick">
           {/* Toggle Remove Teacher */}
           <div className="flex items-center justify-between p-4 rounded-2xl bg-[#fdfbf7] border-2 border-[#2d2d2d] shadow-[3px_3px_0px_0px_#2d2d2d]">
             <div className="flex items-center gap-3">
