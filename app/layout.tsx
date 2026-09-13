@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import LenisScroll from "./LenisScroll";
 
 export const metadata: Metadata = {
   title: "TKB Generator - Professional Schedule Creator",
@@ -46,7 +45,6 @@ export default function RootLayout({
           aria-hidden="true"
           className="pointer-events-none fixed inset-0 -z-10 paper-texture opacity-90 dark:opacity-20"
         />
-        <LenisScroll />
         {children}
       </body>
     </html>
