@@ -1,42 +1,37 @@
 "use client";
+
 import { useEffect } from "react";
 import Lenis from "lenis";
 
 export default function LenisScroll() {
   useEffect(() => {
+    // Ultra-luxurious "gliding on ice" (lướt trên băng) momentum inertia scroll
     const lenis = new Lenis({
-      // Prevent Lenis from managing scroll inside specific containers
+      duration: 1.4, // Generous glide duration
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // Exponential deceleration like ice skating
+      orientation: "vertical",
+      gestureOrientation: "vertical",
+      smoothWheel: true,
+      wheelMultiplier: 1.08, // Silky initial impulse
+      touchMultiplier: 1.8,
+      infinite: false,
       prevent: (node: HTMLElement) => {
-        // Allow scroll on elements with data-lenis-prevent attribute
-        if (node.hasAttribute("data-lenis-prevent")) {
-          return true;
-        }
-        // Allow scroll on elements with these classes
-        const classes = node.className;
-        if (
-          classes.includes("custom-scrollbar") ||
-          classes.includes("overflow-auto") ||
-          classes.includes("overflow-y-auto") ||
-          classes.includes("overflow-x-auto")
-        ) {
-          return true;
-        }
-        return false;
+        // Safely check if node or any parent container has data-lenis-prevent or is an inner scroll container
+        if (!node || typeof node.closest !== "function") return false;
+        return !!node.closest("[data-lenis-prevent], .custom-scrollbar, .overflow-y-auto, .overflow-auto");
       },
     });
 
-    lenis.on("scroll", (e: any) => {
-      // console.log(e);
-    });
-
+    let rafId: number;
     function raf(time: number) {
       lenis.raf(time);
-      requestAnimationFrame(raf);
+      rafId = requestAnimationFrame(raf);
     }
 
-    requestAnimationFrame(raf);
+    rafId = requestAnimationFrame(raf);
 
     return () => {
+      cancelAnimationFrame(rafId);
       lenis.destroy();
     };
   }, []);

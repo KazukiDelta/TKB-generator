@@ -526,7 +526,10 @@ export default function DashboardPage() {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-56 overflow-y-auto custom-scrollbar p-1">
+                  <div
+                    data-lenis-prevent
+                    className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-56 overflow-y-auto custom-scrollbar p-1"
+                  >
                     {allClasses.map((cls) => (
                       <button
                         key={cls}
