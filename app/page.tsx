@@ -154,7 +154,11 @@ export default function DashboardPage() {
           if (found) setCurrentTheme(found);
         }
         if (parsed.options) {
-          setOptions((prev) => ({ ...prev, ...parsed.options }));
+          setOptions((prev) => ({
+            ...prev,
+            ...parsed.options,
+            academicYear: parsed.options.academicYear || getCurrentAcademicYear(),
+          }));
         }
         if (Array.isArray(parsed.stickers) && parsed.stickers.length > 0) {
           setStickers(parsed.stickers);
@@ -200,12 +204,11 @@ export default function DashboardPage() {
             setProcessedSchedule(pkg.scheduleByClass[defaultClass]);
           }
 
-          if (pkg.academicYear) {
-            setOptions((prev) => ({ ...prev, academicYear: pkg.academicYear! }));
-          }
-          if (pkg.uploadedAt) {
-            setOptions((prev) => ({ ...prev, updatedDate: pkg.uploadedAt }));
-          }
+          setOptions((prev) => ({
+            ...prev,
+            academicYear: pkg.academicYear || getCurrentAcademicYear(),
+            updatedDate: pkg.uploadedAt || prev.updatedDate,
+          }));
         }
       } catch (err) {
         console.warn("Could not auto-fetch school schedule:", err);
@@ -220,6 +223,10 @@ export default function DashboardPage() {
     setIsSchoolScheduleActive(false);
     setSelectedClass(SAMPLE_CLASS);
     setProcessedSchedule(SAMPLE_SCHEDULE);
+    setOptions((prev) => ({
+      ...prev,
+      academicYear: getCurrentAcademicYear(),
+    }));
     // Add demo motivation stickers
     setStickers([
       {
