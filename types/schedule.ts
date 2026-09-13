@@ -5,6 +5,7 @@ export interface ScheduleCell {
   teacher: string;
   originalText: string;
   type: ScheduleCellType;
+  color?: string; // optional custom background color (hex)
 }
 
 export type ScheduleMatrix = (ScheduleCell | null)[][];

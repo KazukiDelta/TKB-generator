@@ -354,6 +354,7 @@ export function renderTimetableToCanvas(
       // FILLED CELL
       const isNN2Cell = isNN2(cell.subject) || isNN2(cell.originalText) || cell.type === "nn2";
       const isActivity = cell.type === "activity";
+      const customColor = cell.color; // user-set custom hex color
 
       ctx.save();
       // Draw subtle shadow for handdrawn cells
@@ -370,7 +371,9 @@ export function renderTimetableToCanvas(
         drawRoundedRect(ctx, x, y, cellW, cellH, 12);
       }
 
-      if (isNN2Cell) {
+      if (customColor) {
+        ctx.fillStyle = hexToRgba(customColor, 0.75);
+      } else if (isNN2Cell) {
         ctx.fillStyle = hexToRgba(options.nn2Color || theme.highlightDefault, 0.32);
       } else if (isActivity) {
         ctx.fillStyle = hexToRgba(theme.badgeBg, 0.24);
@@ -379,7 +382,9 @@ export function renderTimetableToCanvas(
       }
       ctx.fill();
 
-      ctx.strokeStyle = isNN2Cell
+      ctx.strokeStyle = customColor
+        ? customColor
+        : isNN2Cell
         ? options.nn2Color || theme.highlightDefault
         : isActivity
         ? theme.badgeBg
@@ -405,9 +410,13 @@ export function renderTimetableToCanvas(
       const totalContentHeight = totalSubjectHeight + (hasTeacher ? teacherFontSize + 4 : 0);
       const startY = y + (cellH - totalContentHeight) / 2 + subjectFontSize * 0.85;
 
+      // For custom-color cells use dark text for legibility
+      const textColorOverride = customColor ? "#1a1a1a" : null;
+
       // Draw Subject lines
       ctx.textAlign = "center";
-      ctx.fillStyle = isNN2Cell ? (theme.category === "bw" ? "#000000" : theme.subjectColor) : theme.subjectColor;
+      ctx.fillStyle = textColorOverride
+        ?? (isNN2Cell ? (theme.category === "bw" ? "#000000" : theme.subjectColor) : theme.subjectColor);
 
       for (let i = 0; i < lines.length; i++) {
         ctx.fillText(lines[i], x + cellW / 2, startY + i * (subjectFontSize + 3));
@@ -415,7 +424,7 @@ export function renderTimetableToCanvas(
 
       // Draw Teacher line
       if (hasTeacher) {
-        ctx.fillStyle = theme.teacherColor;
+        ctx.fillStyle = textColorOverride ?? theme.teacherColor;
         ctx.font = `600 ${teacherFontSize}px ${theme.fontBody}`;
         const teacherY = startY + (lines.length - 1) * (subjectFontSize + 3) + teacherFontSize + 5;
         let teacherText = cell.teacher;

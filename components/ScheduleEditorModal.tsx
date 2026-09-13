@@ -144,7 +144,7 @@ export default function ScheduleEditorModal({
               <button
                 type="button"
                 onClick={handleApplyCell}
-                className="hand-btn hand-btn-blue px-4 py-1.5 font-kalam font-bold text-base text-white flex items-center gap-1.5 rounded-xl"
+                className="hand-btn hand-btn-blue px-4 py-1.5 font-kalam font-bold text-base text-white flex items-center gap-1.5 rounded-xl whitespace-nowrap"
               >
                 <Check className="w-4 h-4 stroke-[3]" />
                 <span>Áp dụng</span>

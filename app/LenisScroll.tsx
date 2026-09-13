@@ -1,46 +1,84 @@
 "use client";
 
 import { useEffect } from "react";
-import Lenis from "lenis";
 
+/**
+ * SmoothScroll – lightweight "gliding on ice" scroll using native scrollTop.
+ *
+ * Unlike Lenis (which uses transform: translate3d to move content), this
+ * implementation uses window.scrollTo, which lets the browser compositor
+ * handle scrolling natively. This avoids compositing conflicts with the
+ * 1920×1080 canvas that uses transform: scale().
+ */
 export default function LenisScroll() {
   useEffect(() => {
-    // Ultra-luxurious "gliding on ice" (lướt trên băng) momentum inertia scroll
-    const lenis = new Lenis({
-      duration: 1.6, // Longer gliding glide
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // Luxurious exponential deceleration
-      orientation: "vertical",
-      gestureOrientation: "vertical",
-      smoothWheel: true,
-      wheelMultiplier: 1.15, // Effortless glide impulse
-      touchMultiplier: 1.8,
-      infinite: false,
-      prevent: (node: HTMLElement) => {
-        // Only prevent Lenis inside elements explicitly marked with data-lenis-prevent
-        if (!node || typeof node.closest !== "function") return false;
-        return !!node.closest("[data-lenis-prevent]");
-      },
-    });
+    let targetY = window.scrollY;
+    let currentY = window.scrollY;
+    let rafId: number | null = null;
+    let isRunning = false;
 
-    // Expose lenis globally for seamless delegation from canvas frame
-    if (typeof window !== "undefined") {
-      (window as any).__lenis = lenis;
+    const ease = 0.08; // lower = more glide (0.05–0.12 sweet spot)
+    const threshold = 0.5; // stop animating when close enough
+
+    function animate() {
+      currentY += (targetY - currentY) * ease;
+
+      // Clamp to valid scroll range
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      currentY = Math.max(0, Math.min(maxScroll, currentY));
+
+      if (Math.abs(targetY - currentY) > threshold) {
+        window.scrollTo(0, currentY);
+        rafId = requestAnimationFrame(animate);
+      } else {
+        window.scrollTo(0, targetY);
+        currentY = targetY;
+        isRunning = false;
+        rafId = null;
+      }
     }
 
-    let rafId: number;
-    function raf(time: number) {
-      lenis.raf(time);
-      rafId = requestAnimationFrame(raf);
+    function startAnimation() {
+      if (!isRunning) {
+        isRunning = true;
+        rafId = requestAnimationFrame(animate);
+      }
     }
 
-    rafId = requestAnimationFrame(raf);
+    function handleWheel(e: WheelEvent) {
+      // Don't intercept horizontal or inside nested scrollable containers
+      // (modals, dropdowns marked with data-scroll-prevent)
+      const target = e.target as HTMLElement;
+      if (target?.closest?.("[data-scroll-prevent]")) return;
+
+      e.preventDefault();
+
+      // Sync if user scrolled natively (keyboard, scrollbar drag, etc.)
+      if (Math.abs(currentY - window.scrollY) > 100) {
+        currentY = window.scrollY;
+        targetY = window.scrollY;
+      }
+
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      targetY = Math.max(0, Math.min(maxScroll, targetY + e.deltaY));
+      startAnimation();
+    }
+
+    // Sync on keyboard/touch/programmatic scroll
+    function handleScroll() {
+      if (!isRunning) {
+        currentY = window.scrollY;
+        targetY = window.scrollY;
+      }
+    }
+
+    window.addEventListener("wheel", handleWheel, { passive: false });
+    window.addEventListener("scroll", handleScroll, { passive: true });
 
     return () => {
-      cancelAnimationFrame(rafId);
-      if (typeof window !== "undefined") {
-        delete (window as any).__lenis;
-      }
-      lenis.destroy();
+      window.removeEventListener("wheel", handleWheel);
+      window.removeEventListener("scroll", handleScroll);
+      if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, []);
 

@@ -345,16 +345,6 @@ export default function TimetableCanvas({
     computeAutoScale();
   };
 
-  // Delegate vertical wheel events directly to Lenis gliding scroll so hovering over TKB never blocks or jerks
-  const handleFrameWheel = (e: React.WheelEvent) => {
-    if (!e.shiftKey && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-      if (typeof window !== "undefined" && (window as any).__lenis) {
-        const lenis = (window as any).__lenis;
-        const currentTarget = typeof lenis.targetScroll === "number" ? lenis.targetScroll : (lenis.scroll ?? window.scrollY);
-        lenis.scrollTo(currentTarget + e.deltaY * 1.25);
-      }
-    }
-  };
 
   // Sticker manipulation
   const handleRotateSticker = (id: string, delta: number) => {
@@ -547,7 +537,6 @@ export default function TimetableCanvas({
       {/* Main Preview Outer Container - Styled like a sketchbook desk mat */}
       <div
         ref={outerWrapperRef}
-        onWheel={handleFrameWheel}
         className="w-full overflow-x-auto custom-scrollbar rounded-3xl border-2 border-[#2d2d2d] dark:border-[#383d4a] shadow-[6px_6px_0px_0px_#2d2d2d] dark:shadow-[6px_6px_0px_0px_#090a0f] bg-[#f5efe6] dark:bg-[#0c0d12] p-4 select-none min-h-[420px]"
       >
         {/* w-fit min-w-full flex expands when zoomed, centers when smaller without clipping start */}

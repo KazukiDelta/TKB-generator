@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, Check, Trash2, BookOpen, User, Sparkles } from "lucide-react";
+import { X, Check, Trash2, BookOpen, User, Sparkles, Palette } from "lucide-react";
 import { ScheduleCell, ScheduleCellType, TIME_SLOTS, DAYS_SHORT } from "@/types/schedule";
 
 interface EditCellModalProps {
@@ -43,16 +43,32 @@ export default function EditCellModal({
   const [subject, setSubject] = useState("");
   const [teacher, setTeacher] = useState("");
   const [cellType, setCellType] = useState<ScheduleCellType>("main");
+  const [cellColor, setCellColor] = useState<string | undefined>(undefined);
+
+  const COLOR_PRESETS = [
+    { label: "Mặc định", value: undefined },
+    { label: "Hồng",    value: "#fda4af" },
+    { label: "Cam",     value: "#fdba74" },
+    { label: "Vàng",    value: "#fde047" },
+    { label: "Xanh lá",value: "#86efac" },
+    { label: "Xanh lam",value: "#93c5fd" },
+    { label: "Tím",    value: "#c4b5fd" },
+    { label: "Hồng đậm",value: "#f9a8d4" },
+    { label: "Xanh cyan",value: "#67e8f9" },
+    { label: "Xám nhạt",value: "#e2e8f0" },
+  ];
 
   useEffect(() => {
     if (cell) {
       setSubject(cell.subject || "");
       setTeacher(cell.teacher || "");
       setCellType(cell.type || "main");
+      setCellColor(cell.color ?? undefined);
     } else {
       setSubject("");
       setTeacher("");
       setCellType("main");
+      setCellColor(undefined);
     }
   }, [cell, isOpen]);
 
@@ -74,6 +90,7 @@ export default function EditCellModal({
       teacher: teacher.trim(),
       originalText: `${subject.trim()} - ${teacher.trim()}`,
       type: cellType,
+      ...(cellColor ? { color: cellColor } : {}),
     };
 
     onSaveCell(periodIndex, dayIndex, updatedCell);
@@ -196,6 +213,52 @@ export default function EditCellModal({
                   {t.label}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Color picker */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-bold text-[#2d2d2d] dark:text-[#f1f5f9] flex items-center gap-1.5">
+              <Palette className="w-4 h-4 text-[#7c3aed]" />
+              <span>Màu Ô (tùy chọn):</span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {COLOR_PRESETS.map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  title={preset.label}
+                  onClick={() => setCellColor(preset.value)}
+                  className={`flex items-center justify-center w-8 h-8 rounded-xl border-2 transition-all hover:scale-110 ${
+                    cellColor === preset.value
+                      ? "border-[#2d2d2d] dark:border-white shadow-[2px_2px_0px_0px_#2d2d2d] scale-110"
+                      : "border-[#2d2d2d]/30 dark:border-white/20 hover:border-[#2d2d2d]/60"
+                  }`}
+                  style={{
+                    background: preset.value ?? "linear-gradient(135deg, #f8fafc 50%, #e2e8f0 50%)",
+                  }}
+                >
+                  {cellColor === preset.value && (
+                    <Check
+                      className="w-4 h-4 stroke-[3]"
+                      style={{ color: preset.value ? "#2d2d2d" : "#94a3b8" }}
+                    />
+                  )}
+                </button>
+              ))}
+              {/* Custom hex input */}
+              <div className="flex items-center gap-1.5 ml-1">
+                <input
+                  type="color"
+                  value={cellColor ?? "#ffffff"}
+                  onChange={(e) => setCellColor(e.target.value)}
+                  className="w-8 h-8 rounded-xl border-2 border-[#2d2d2d]/30 cursor-pointer p-0.5 bg-white dark:bg-[#222634]"
+                  title="Chọn màu tuỳ chỉnh"
+                />
+                <span className="text-xs text-[#2d2d2d]/60 dark:text-white/40 font-mono">
+                  {cellColor ?? "tuỳ chỉnh"}
+                </span>
+              </div>
             </div>
           </div>
         </div>
