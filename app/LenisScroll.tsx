@@ -22,6 +22,11 @@ export default function LenisScroll() {
       },
     });
 
+    // Expose lenis globally for seamless delegation from canvas frame
+    if (typeof window !== "undefined") {
+      (window as any).__lenis = lenis;
+    }
+
     let rafId: number;
     function raf(time: number) {
       lenis.raf(time);
@@ -32,6 +37,9 @@ export default function LenisScroll() {
 
     return () => {
       cancelAnimationFrame(rafId);
+      if (typeof window !== "undefined") {
+        delete (window as any).__lenis;
+      }
       lenis.destroy();
     };
   }, []);
