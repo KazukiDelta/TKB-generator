@@ -9,12 +9,14 @@ import {
   Heart,
   Moon,
   Sun,
+  Globe,
 } from "lucide-react";
 
 interface HeaderProps {
   onLoadDemo: () => void;
   onOpenSettings: () => void;
   onOpenDonate?: () => void;
+  onOpenSyncTkbWeb?: () => void;
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
   isDarkMode?: boolean;
@@ -25,6 +27,7 @@ export default function Header({
   onLoadDemo,
   onOpenSettings,
   onOpenDonate,
+  onOpenSyncTkbWeb,
   isSidebarOpen,
   onToggleSidebar,
   isDarkMode = false,
@@ -90,6 +93,18 @@ export default function Header({
 
           {/* Right: Action Buttons (compact icon-focused on mobile, full labels on desktop) */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            {onOpenSyncTkbWeb && (
+              <button
+                type="button"
+                onClick={onOpenSyncTkbWeb}
+                title="Lấy TKB Trực Tuyến Từ Web Trường (tkb-web)"
+                className="hand-btn text-sm sm:text-base font-bold p-2 sm:px-3 sm:py-1.5 bg-[#e0f2fe] dark:bg-[#0c4a6e] text-[#0369a1] dark:text-[#bae6fd] hover:bg-[#38bdf8] hover:text-[#0f172a] flex items-center gap-1.5 min-h-[38px] sm:min-h-[42px]"
+              >
+                <Globe className="w-4 h-4 text-[#0284c7] dark:text-[#38bdf8]" />
+                <span className="hidden sm:inline">TKB Trực Tuyến</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={onLoadDemo}

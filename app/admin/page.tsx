@@ -15,6 +15,11 @@ import {
   School,
   Sparkles,
   LogOut,
+  Globe,
+  RefreshCw,
+  Download,
+  Database,
+  ExternalLink,
 } from "lucide-react";
 import {
   analyzeWorkbookSheet,
@@ -52,6 +57,15 @@ export default function AdminPage() {
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishSuccess, setPublishSuccess] = useState(false);
 
+  // Online TKB Sync States
+  const [onlinePackage, setOnlinePackage] = useState<any | null>(null);
+  const [isSyncingFromWeb, setIsSyncingFromWeb] = useState(false);
+  const [webVersions, setWebVersions] = useState<
+    Array<{ id: string; label: string; date: string; tag?: string }>
+  >([]);
+  const [selectedWebVersion, setSelectedWebVersion] = useState<string>("v3");
+  const [cloudStorageGuidance, setCloudStorageGuidance] = useState<string | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Check existing session
@@ -83,6 +97,18 @@ export default function AdminPage() {
   useEffect(() => {
     if (isAuthenticated) {
       fetchSchoolSchedule();
+      // Fetch available versions from tkb-web
+      fetch("/api/sync-tkb-web?action=versions")
+        .then((r) => r.json())
+        .then((json) => {
+          if (json.success && json.versions) {
+            setWebVersions(json.versions);
+            if (json.versions[0]) {
+              setSelectedWebVersion(json.versions[0].id);
+            }
+          }
+        })
+        .catch(() => {});
     }
   }, [isAuthenticated]);
 
@@ -171,17 +197,42 @@ export default function AdminPage() {
     }
   };
 
-  // Publish to the entire school
-  const handlePublishSchoolSchedule = async () => {
-    if (!workbook || !selectedSheet || parsedClasses.length === 0 || !uploadedFile) {
-      alert("Vui lòng tải file Excel hợp lệ trước khi xuất bản!");
-      return;
-    }
-
-    setIsPublishing(true);
+  // Sync directly from online tkb-web
+  const handleSyncFromWeb = async (versionId?: string) => {
+    const ver = versionId || selectedWebVersion || "v3";
+    setIsSyncingFromWeb(true);
+    setCloudStorageGuidance(null);
+    setPublishSuccess(false);
 
     try {
-      // Extract schedules for all classes
+      const res = await fetch(`/api/sync-tkb-web?version=${encodeURIComponent(ver)}`);
+      const json = await res.json();
+      if (!json.success || !json.data) {
+        throw new Error(json.error || "Không thể tải dữ liệu từ web trường");
+      }
+
+      setOnlinePackage(json.data);
+      setParsedClasses(json.data.classes);
+      // Reset local file so online package is used
+      setUploadedFile(null);
+      setWorkbook(null);
+      alert(
+        `Đã nạp thành công ${json.data.classes.length} lớp học từ web trường (${ver.toUpperCase()})!\nBạn có thể nhấn "Xuất Bản" hoặc "Tải file JSON".`
+      );
+    } catch (err: any) {
+      alert("Lỗi khi tải từ web trường: " + (err?.message || "Không xác định"));
+    } finally {
+      setIsSyncingFromWeb(false);
+    }
+  };
+
+  // Get current active payload from either Online Sync or Excel Upload
+  const getPayloadToPublish = () => {
+    if (onlinePackage) {
+      return onlinePackage;
+    }
+
+    if (workbook && selectedSheet && parsedClasses.length > 0 && uploadedFile) {
       const scheduleByClass: Record<string, ScheduleMatrix> = {};
       for (const cls of parsedClasses) {
         const matrix = extractScheduleForClass(
@@ -195,7 +246,7 @@ export default function AdminPage() {
         }
       }
 
-      const payload = {
+      return {
         fileName: uploadedFile.name,
         sheetName: selectedSheet,
         classes: parsedClasses,
@@ -207,7 +258,23 @@ export default function AdminPage() {
         scheduleByClass,
         academicYear: getCurrentAcademicYear(),
       };
+    }
 
+    return null;
+  };
+
+  // Publish to the entire school
+  const handlePublishSchoolSchedule = async () => {
+    const payload = getPayloadToPublish();
+    if (!payload) {
+      alert("Vui lòng tải file Excel hợp lệ hoặc đồng bộ từ web trường trước khi xuất bản!");
+      return;
+    }
+
+    setIsPublishing(true);
+    setCloudStorageGuidance(null);
+
+    try {
       const res = await fetch("/api/schedule", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -217,9 +284,14 @@ export default function AdminPage() {
       const json = await res.json();
       if (json.success) {
         setPublishSuccess(true);
+        setCloudStorageGuidance(null);
         await fetchSchoolSchedule();
       } else {
-        alert("Không thể xuất bản: " + json.error);
+        if (json.needsCloudStorage) {
+          setCloudStorageGuidance(json.error);
+        } else {
+          alert("Không thể xuất bản: " + json.error);
+        }
       }
     } catch (err) {
       console.error("Publish error:", err);
@@ -227,6 +299,27 @@ export default function AdminPage() {
     } finally {
       setIsPublishing(false);
     }
+  };
+
+  // Download parsed schedule directly as school_schedule.json
+  const handleDownloadJson = () => {
+    const payload = getPayloadToPublish();
+    if (!payload) {
+      alert("Vui lòng tải file Excel hoặc đồng bộ từ web trường trước khi tải JSON!");
+      return;
+    }
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "school_schedule.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   // Delete current school schedule
@@ -439,12 +532,93 @@ export default function AdminPage() {
           )}
         </div>
 
-        {/* Upload New School Schedule Card */}
+        {/* Option 1: Sync directly from tkb-web online card */}
+        <div className="hand-card p-6 border-[3px] border-[#2d2d2d] rounded-3xl shadow-[6px_6px_0px_0px_#2d2d2d] space-y-4 bg-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-[#e0f2fe] border-2 border-[#2d2d2d] text-[#0284c7] shadow-[2px_2px_0px_0px_#2d2d2d]">
+                <Globe className="w-6 h-6 stroke-[2.5]" />
+              </div>
+              <div>
+                <h2 className="text-xl font-black font-kalam text-[#2d2d2d]">
+                  Cách 1: Lấy Dữ Liệu Trực Tuyến Từ Web Trường
+                </h2>
+                <p className="text-xs font-patrick text-[#2d2d2d]/70">
+                  Nguồn: <code>http://14.225.211.159/tkb-web/</code>
+                </p>
+              </div>
+            </div>
+            <a
+              href="http://14.225.211.159/tkb-web/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-bold font-patrick text-[#2d5da1] hover:underline flex items-center gap-1"
+            >
+              <span>Xem trang gốc</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="flex-1">
+              <label className="text-sm font-bold text-[#2d2d2d] block mb-1">
+                Chọn phiên bản TKB trực tuyến:
+              </label>
+              <select
+                value={selectedWebVersion}
+                onChange={(e) => setSelectedWebVersion(e.target.value)}
+                className="hand-input w-full px-3 py-2 bg-[#fdfbf7] font-patrick font-bold text-base text-[#2d2d2d]"
+              >
+                {(webVersions.length > 0
+                  ? webVersions
+                  : [
+                      { id: "v3", label: "TKB 3", date: "21/09/2026", tag: "MỚI" },
+                      { id: "v2", label: "TKB 2", date: "14/09/2026", tag: "" },
+                      { id: "v1", label: "TKB 1", date: "07/09/2026", tag: "" },
+                    ]
+                ).map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.label} (Áp dụng từ: {v.date}) {v.tag ? `[${v.tag}]` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => handleSyncFromWeb()}
+              disabled={isSyncingFromWeb}
+              className="hand-btn hand-btn-blue font-kalam font-bold text-lg px-6 py-2.5 rounded-xl self-end flex items-center justify-center gap-2 bg-[#0284c7] text-white disabled:opacity-50"
+            >
+              {isSyncingFromWeb ? (
+                <>
+                  <RefreshCw className="w-5 h-5 animate-spin" />
+                  <span>Đang tải...</span>
+                </>
+              ) : (
+                <>
+                  <Globe className="w-5 h-5" />
+                  <span>Lấy Dữ Liệu Web (37 Lớp)</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {onlinePackage && (
+            <div className="p-3.5 rounded-2xl bg-[#f0fdf4] border-2 border-[#16a34a] text-[#166534] text-sm font-patrick font-semibold flex items-center justify-between">
+              <span>
+                ✓ Đang chọn nguồn trực tuyến: <b>{onlinePackage.fileName}</b> ({onlinePackage.classes.length} lớp học sẵn sàng xuất bản hoặc tải về)
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Option 2: Upload New School Schedule Card */}
         <div className="hand-card p-6 border-[3px] border-[#2d2d2d] rounded-3xl shadow-[6px_6px_0px_0px_#2d2d2d] space-y-5 hand-wobbly-2 bg-white">
           <div className="flex items-center gap-2.5">
             <FileSpreadsheet className="w-6 h-6 text-[#9c27b0] stroke-[2.5]" />
             <h2 className="text-xl font-black font-kalam text-[#2d2d2d]">
-              Tải Lên File Excel TKB Trường Mới
+              Cách 2: Tải Lên File Excel TKB Trường (.xlsx)
             </h2>
           </div>
 
@@ -542,8 +716,8 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {/* Publish Button */}
-              <div className="pt-2">
+              {/* Action Buttons: Publish or Download JSON */}
+              <div className="pt-2 space-y-3">
                 <button
                   type="button"
                   onClick={handlePublishSchoolSchedule}
@@ -557,7 +731,34 @@ export default function AdminPage() {
                       : "Xuất Bản & Đồng Bộ Cho Toàn Trường"}
                   </span>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={handleDownloadJson}
+                  disabled={parsedClasses.length === 0}
+                  className="hand-btn w-full py-3 rounded-2xl font-kalam font-bold text-lg bg-[#fff9c4] hover:bg-[#fff59d] text-[#2d2d2d] border-2 border-[#2d2d2d] shadow-[3px_3px_0px_0px_#2d2d2d] disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <Download className="w-5 h-5 text-[#2d5da1]" />
+                  <span>Tải File school_schedule.json (Lưu thủ công vào project)</span>
+                </button>
               </div>
+
+              {/* Cloud Storage guidance if Vercel serverless read-only occurs */}
+              {cloudStorageGuidance && (
+                <div className="p-5 rounded-2xl bg-[#fff8e1] border-[2.5px] border-[#f59e0b] text-[#78350f] space-y-2.5 shadow-[3px_3px_0px_0px_#f59e0b] animate-in fade-in">
+                  <div className="flex items-center gap-2 font-bold font-kalam text-lg text-[#b45309]">
+                    <Database className="w-5 h-5" />
+                    <span>Lưu ý triển khai trên Vercel:</span>
+                  </div>
+                  <p className="text-sm font-patrick font-semibold leading-relaxed">
+                    {cloudStorageGuidance}
+                  </p>
+                  <div className="pt-2 border-t border-[#f59e0b]/30 text-xs font-patrick font-bold space-y-1 text-[#92400e]">
+                    <p>👉 <b>Cách 1 (Nhanh nhất - Không cần Database):</b> Bấm nút màu vàng <b>"Tải File school_schedule.json"</b> ở trên, chép đè vào thư mục <code>data/school_schedule.json</code> trong project rồi <code>git push</code> lên GitHub.</p>
+                    <p>👉 <b>Cách 2 (Tự động 100% qua web):</b> Vào Vercel Dashboard ➔ Tab <b>Storage</b> ➔ Thêm <b>Upstash Redis</b> (miễn phí). Sau đó nút "Xuất Bản" sẽ lưu trực tiếp lên đám mây!</p>
+                  </div>
+                </div>
+              )}
 
               {publishSuccess && (
                 <div className="p-4 rounded-2xl bg-[#c8e6c9] border-2 border-[#2e7d32] text-[#1b5e20] text-base font-bold flex items-center gap-3 animate-in fade-in shadow-[3px_3px_0px_0px_#2e7d32]">

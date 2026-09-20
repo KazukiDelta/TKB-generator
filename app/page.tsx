@@ -16,6 +16,10 @@ import {
   School,
   Lock,
   Heart,
+  Globe,
+  RefreshCw,
+  ExternalLink,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -135,6 +139,15 @@ export default function DashboardPage() {
   const [isDonateOpen, setIsDonateOpen] = useState(false);
   const [classSearch, setClassSearch] = useState("");
 
+  // Sync TKB Web States
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [isSyncingWeb, setIsSyncingWeb] = useState(false);
+  const [webVersions, setWebVersions] = useState<
+    Array<{ id: string; label: string; date: string; tag?: string }>
+  >([]);
+  const [selectedWebVersion, setSelectedWebVersion] = useState<string>("v3");
+  const [syncWebError, setSyncWebError] = useState<string | null>(null);
+
   // Auto collapse sidebar on mobile so TKB is immediately visible
   useEffect(() => {
     if (typeof window !== "undefined" && window.innerWidth < 1024) {
@@ -252,6 +265,67 @@ export default function DashboardPage() {
         opacity: 1,
       },
     ]);
+  };
+
+  // Open Online TKB Modal and load available versions
+  const handleOpenSyncModal = async () => {
+    setIsSyncModalOpen(true);
+    setSyncWebError(null);
+    if (webVersions.length === 0) {
+      try {
+        const res = await fetch("/api/sync-tkb-web?action=versions");
+        const json = await res.json();
+        if (json.success && json.versions) {
+          setWebVersions(json.versions);
+          if (json.versions[0]) {
+            setSelectedWebVersion(json.versions[0].id);
+          }
+        }
+      } catch (e) {
+        console.warn("Could not fetch web versions:", e);
+      }
+    }
+  };
+
+  // Perform fetching TKB from tkb-web
+  const handleSyncTkbWeb = async (versionId?: string) => {
+    const ver = versionId || selectedWebVersion || "v3";
+    setIsSyncingWeb(true);
+    setSyncWebError(null);
+
+    try {
+      const res = await fetch(`/api/sync-tkb-web?version=${encodeURIComponent(ver)}`);
+      const json = await res.json();
+
+      if (!json.success || !json.data) {
+        throw new Error(json.error || "Không thể lấy dữ liệu TKB trực tuyến");
+      }
+
+      const pkg: SchoolSchedulePackage = json.data;
+      setSchoolSchedule(pkg);
+      setIsSchoolScheduleActive(true);
+      setAllClasses(pkg.classes);
+
+      const targetClass = pkg.classes.includes(selectedClass) ? selectedClass : pkg.classes[0];
+      setSelectedClass(targetClass);
+
+      if (pkg.scheduleByClass?.[targetClass]) {
+        setProcessedSchedule(pkg.scheduleByClass[targetClass]);
+      }
+
+      setOptions((prev) => ({
+        ...prev,
+        academicYear: pkg.academicYear || getCurrentAcademicYear(),
+        updatedDate: pkg.uploadedAt || prev.updatedDate,
+      }));
+
+      setIsSyncModalOpen(false);
+    } catch (err: any) {
+      console.error("Sync error:", err);
+      setSyncWebError(err?.message || "Lỗi khi đồng bộ dữ liệu từ web trường");
+    } finally {
+      setIsSyncingWeb(false);
+    }
   };
 
   // Handle Excel File Upload
@@ -386,6 +460,7 @@ export default function DashboardPage() {
       {/* Header */}
       <Header
         onLoadDemo={handleLoadDemo}
+        onOpenSyncTkbWeb={handleOpenSyncModal}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenDonate={() => setIsDonateOpen(true)}
         isSidebarOpen={isSidebarOpen}
@@ -474,6 +549,7 @@ export default function DashboardPage() {
                 />
 
                 {!file ? (
+                  <>
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
@@ -485,6 +561,20 @@ export default function DashboardPage() {
                     <p className="text-base font-bold font-patrick text-[#2d2d2d] dark:text-[#f8fafc]">Chọn file Excel (.xlsx, .xls)</p>
                     <p className="text-sm font-patrick text-[#2d2d2d]/60 dark:text-[#94a3b8]">hoặc kéo thả file vào đây</p>
                   </button>
+                  <div className="pt-2 border-t border-[#2d2d2d]/15 dark:border-[#383e52]/50 text-center">
+                    <p className="text-xs font-bold text-[#2d2d2d]/50 dark:text-white/40 uppercase tracking-wider mb-2">
+                      hoặc không có file excel?
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleOpenSyncModal}
+                      className="hand-btn w-full py-2 px-3 bg-[#e0f2fe] dark:bg-[#0c4a6e] text-[#0369a1] dark:text-[#bae6fd] hover:bg-[#38bdf8] hover:text-[#0f172a] font-bold text-sm flex items-center justify-center gap-2"
+                    >
+                      <Globe className="w-4 h-4 text-[#0284c7] dark:text-[#38bdf8]" />
+                      <span>Lấy TKB Online Từ Web Trường</span>
+                    </button>
+                  </div>
+                </>
                 ) : (
                   <div className="space-y-3">
                     <div className="p-3.5 rounded-2xl bg-[#f0fdf4] dark:bg-[#14261c] border-2 border-[#2d2d2d] dark:border-[#22c55e] flex items-center justify-between shadow-[2px_2px_0px_0px_#2d2d2d] dark:shadow-[2px_2px_0px_0px_#090a0f]">
@@ -756,23 +846,32 @@ export default function DashboardPage() {
                   </p>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-center gap-4">
+                <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+                  <button
+                    type="button"
+                    onClick={handleOpenSyncModal}
+                    className="hand-btn text-base sm:text-lg font-bold px-5 sm:px-6 py-3 bg-[#e0f2fe] dark:bg-[#0c4a6e] text-[#0369a1] dark:text-[#bae6fd] hover:bg-[#38bdf8] hover:text-[#0f172a] flex items-center gap-2"
+                  >
+                    <Globe className="w-5 h-5 text-[#0284c7] dark:text-[#38bdf8]" />
+                    <span>Lấy TKB Trực Tuyến (37 Lớp)</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={handleLoadDemo}
-                    className="hand-btn hand-btn-yellow text-lg font-bold px-6 py-3"
+                    className="hand-btn hand-btn-yellow text-base sm:text-lg font-bold px-5 sm:px-6 py-3 flex items-center gap-2"
                   >
                     <PlayCircle className="w-5 h-5" />
-                    <span>Xem Dữ Liệu Mẫu</span>
+                    <span>Dữ Liệu Mẫu</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="hand-btn text-lg font-bold px-6 py-3"
+                    className="hand-btn text-base sm:text-lg font-bold px-5 sm:px-6 py-3 flex items-center gap-2"
                   >
                     <Upload className="w-5 h-5" />
-                    <span>Tải File Excel Của Bạn</span>
+                    <span>Tải File Excel</span>
                   </button>
                 </div>
               </div>
@@ -826,6 +925,126 @@ export default function DashboardPage() {
         isOpen={isDonateOpen}
         onClose={() => setIsDonateOpen(false)}
       />
+
+      {/* Online TKB Sync Modal */}
+      {isSyncModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+          <div className="hand-card w-full max-w-lg p-6 bg-white dark:bg-[#151922] border-[3px] border-[#2d2d2d] dark:border-[#383e52] rounded-3xl shadow-[8px_8px_0px_0px_#2d2d2d] dark:shadow-[8px_8px_0px_0px_#090a0f] space-y-5 relative">
+            <button
+              type="button"
+              onClick={() => setIsSyncModalOpen(false)}
+              className="absolute top-4 right-4 p-2 rounded-xl text-[#2d2d2d] dark:text-white hover:bg-[#ff4d4d] hover:text-white transition-colors"
+              title="Đóng"
+            >
+              <X className="w-5 h-5 stroke-[2.5]" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-2xl bg-[#e0f2fe] dark:bg-[#0c4a6e] border-2 border-[#2d2d2d] dark:border-[#38bdf8] text-[#0284c7] dark:text-[#38bdf8] shadow-[2px_2px_0px_0px_#2d2d2d]">
+                <Globe className="w-7 h-7 stroke-[2.5]" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-black font-kalam text-[#2d2d2d] dark:text-white leading-tight">
+                  Lấy TKB Trực Tuyến
+                </h3>
+                <p className="text-sm font-patrick text-[#2d2d2d]/70 dark:text-[#94a3b8]">
+                  Đồng bộ từ hệ thống tra cứu: <code>14.225.211.159/tkb-web</code>
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-base font-bold font-kalam text-[#2d2d2d] dark:text-white block">
+                Chọn phiên bản Thời khóa biểu:
+              </label>
+
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                {(webVersions.length > 0
+                  ? webVersions
+                  : [
+                      { id: "v3", label: "TKB 3", date: "21/09/2026", tag: "MỚI" },
+                      { id: "v2", label: "TKB 2", date: "14/09/2026", tag: "" },
+                      { id: "v1", label: "TKB 1", date: "07/09/2026", tag: "" },
+                    ]
+                ).map((v) => (
+                  <label
+                    key={v.id}
+                    className={`p-3.5 rounded-2xl border-2 cursor-pointer flex items-center justify-between transition-all ${
+                      selectedWebVersion === v.id
+                        ? "bg-[#fff9c4] dark:bg-[#322c15] border-[#2d2d2d] dark:border-[#fde047] shadow-[3px_3px_0px_0px_#2d2d2d]"
+                        : "bg-[#fdfbf7] dark:bg-[#1a1e2a] border-[#2d2d2d]/30 dark:border-[#333b4f] hover:border-[#2d2d2d]"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="radio"
+                        name="webVersion"
+                        value={v.id}
+                        checked={selectedWebVersion === v.id}
+                        onChange={() => setSelectedWebVersion(v.id)}
+                        className="w-4 h-4 text-[#2d5da1]"
+                      />
+                      <div>
+                        <span className="font-bold font-kalam text-lg text-[#2d2d2d] dark:text-white">
+                          {v.label}
+                        </span>
+                        <span className="text-sm font-patrick text-[#2d2d2d]/60 dark:text-[#94a3b8] ml-2">
+                          Áp dụng từ: {v.date}
+                        </span>
+                      </div>
+                    </div>
+                    {v.tag && (
+                      <span className="px-2.5 py-0.5 rounded-lg bg-[#ff4d4d] text-white text-xs font-bold font-patrick shadow-sm">
+                        {v.tag}
+                      </span>
+                    )}
+                  </label>
+                ))}
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-[#f0fdf4] dark:bg-[#14261c] border-2 border-[#16a34a] text-[#166534] dark:text-[#4ade80] text-sm font-patrick font-semibold space-y-1">
+                <p>✓ Tự động tải đầy đủ 37 lớp (Khối 10, 11, 12).</p>
+                <p>✓ Không cần chuẩn bị file Excel, nạp trực tiếp vào ứng dụng.</p>
+              </div>
+
+              {syncWebError && (
+                <div className="p-3 rounded-xl bg-[#fef2f2] text-[#b91c1c] border-2 border-[#ef4444] text-sm font-bold">
+                  {syncWebError}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsSyncModalOpen(false)}
+                className="hand-btn px-4 py-2 text-base font-bold"
+                disabled={isSyncingWeb}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSyncTkbWeb()}
+                disabled={isSyncingWeb}
+                className="hand-btn hand-btn-blue px-6 py-2.5 text-base font-bold flex items-center gap-2 bg-[#0284c7] text-white"
+              >
+                {isSyncingWeb ? (
+                  <>
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    <span>Đang tải 37 lớp...</span>
+                  </>
+                ) : (
+                  <>
+                    <Globe className="w-5 h-5" />
+                    <span>Tải Dữ Liệu Ngay</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
