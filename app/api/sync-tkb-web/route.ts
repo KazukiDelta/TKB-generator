@@ -169,7 +169,7 @@ export async function GET(req: NextRequest) {
       sheetName: `${targetVersion.label || targetVersion.id} - ${targetVersion.date || ""}`.trim(),
       classes,
       headerRowIndex: 0,
-      uploadedAt: `${targetVersion.date || new Date().toLocaleDateString("vi-VN")} (Đồng bộ trực tuyến)`,
+      uploadedAt: targetVersion.date || new Date().toLocaleDateString("vi-VN"),
       scheduleByClass,
       academicYear: getCurrentAcademicYear(),
       sourceUrl: dataUrl,

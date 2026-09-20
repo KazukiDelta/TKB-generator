@@ -217,10 +217,11 @@ export default function DashboardPage() {
             setProcessedSchedule(pkg.scheduleByClass[defaultClass]);
           }
 
+          const cleanDate = (pkg.uploadedAt || "").replace(/\s*\(.*?\)/g, "").trim();
           setOptions((prev) => ({
             ...prev,
             academicYear: pkg.academicYear || getCurrentAcademicYear(),
-            updatedDate: pkg.uploadedAt || prev.updatedDate,
+            updatedDate: cleanDate || prev.updatedDate,
           }));
         }
       } catch (err) {
@@ -313,10 +314,11 @@ export default function DashboardPage() {
         setProcessedSchedule(pkg.scheduleByClass[targetClass]);
       }
 
+      const cleanDate = (pkg.uploadedAt || "").replace(/\s*\(.*?\)/g, "").trim();
       setOptions((prev) => ({
         ...prev,
         academicYear: pkg.academicYear || getCurrentAcademicYear(),
-        updatedDate: pkg.uploadedAt || prev.updatedDate,
+        updatedDate: cleanDate || prev.updatedDate,
       }));
 
       setIsSyncModalOpen(false);
@@ -510,9 +512,10 @@ export default function DashboardPage() {
                     )}
                   </div>
 
-                  <div className="text-base font-patrick text-[#2d2d2d]/80 space-y-0.5">
-                    <p className="font-bold text-[#2d2d2d] truncate">{schoolSchedule.fileName}</p>
-                    <p>{schoolSchedule.classes.length} Lớp • Cập nhật: {schoolSchedule.uploadedAt}</p>
+                  <div className="text-base font-patrick text-[#2d2d2d]/80 dark:text-white/80">
+                    <p className="font-bold text-base text-[#2d2d2d] dark:text-white">
+                      Cập nhật: {(schoolSchedule.uploadedAt || "").replace(/\s*\(.*?\)/g, "").trim()}
+                    </p>
                   </div>
 
                   {!isSchoolScheduleActive ? (

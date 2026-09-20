@@ -215,7 +215,9 @@ export function renderTimetableToCanvas(
   ctx.fillText(academicYearText, headerX, academicYearBaseline);
 
   // Updated date (top right)
-  const updatedText = `UPDATED: ${options.updatedDate || new Date().toLocaleDateString("vi-VN")}`;
+  const rawDate = options.updatedDate || new Date().toLocaleDateString("vi-VN");
+  const cleanUpdatedDate = rawDate.replace(/\s*\(.*?\)/g, "").trim();
+  const updatedText = `UPDATED: ${cleanUpdatedDate}`;
   ctx.fillStyle = theme.textMuted;
   ctx.font = `700 22px ${theme.fontBody}`;
   ctx.textAlign = "right";
