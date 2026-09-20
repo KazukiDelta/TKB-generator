@@ -690,38 +690,89 @@ export default function AdminPage() {
                   </select>
                 </div>
               )}
+            </div>
+          )}
+        </div>
+
+        {/* Card 3: Action Center - Publish & Download JSON (Always available when data is ready) */}
+        <div className="hand-card p-6 border-[3px] border-[#2d2d2d] rounded-3xl shadow-[6px_6px_0px_0px_#2d2d2d] space-y-5 hand-wobbly-1 bg-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-[#fff9c4] border-2 border-[#2d2d2d] text-[#b45309] shadow-[2px_2px_0px_0px_#2d2d2d]">
+                <Sparkles className="w-6 h-6 stroke-[2.5]" />
+              </div>
+              <div>
+                <h2 className="text-xl font-black font-kalam text-[#2d2d2d]">
+                  Khu Vực Xuất Bản & Tải Về
+                </h2>
+                <p className="text-xs font-patrick text-[#2d2d2d]/70">
+                  Phát hành TKB trực tiếp cho học sinh hoặc tải file JSON để lưu trữ
+                </p>
+              </div>
+            </div>
+
+            {parsedClasses.length > 0 && (
+              <span className="px-3 py-1 rounded-xl bg-[#c8e6c9] text-[#1b5e20] text-sm font-bold font-kalam border-2 border-[#2d2d2d] shadow-[2px_2px_0px_0px_#2d2d2d]">
+                ✓ SẴN SÀNG ({parsedClasses.length} LỚP)
+              </span>
+            )}
+          </div>
+
+          {parsedClasses.length === 0 ? (
+            <div className="p-8 rounded-2xl bg-[#fdfbf7] border-2 border-dashed border-[#2d2d2d]/40 text-center space-y-2">
+              <p className="text-lg font-bold font-kalam text-[#2d2d2d]">
+                Chưa có dữ liệu nào được nạp
+              </p>
+              <p className="text-base font-patrick text-[#2d2d2d]/70 max-w-md mx-auto">
+                Hãy nhấn nút <b>"Lấy Dữ Liệu Web"</b> ở Cách 1 (khuyên dùng) hoặc tải file Excel ở Cách 2 ở trên để hiển thị nút Xuất Bản và Tải File.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Current Data Source Banner */}
+              <div className="p-4 rounded-2xl bg-[#fdfbf7] border-2 border-[#2d2d2d] shadow-[2px_2px_0px_0px_#2d2d2d] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div>
+                  <span className="text-xs font-bold text-[#2d2d2d]/60 uppercase tracking-wider block">
+                    Nguồn dữ liệu đang chọn:
+                  </span>
+                  <span className="text-base font-black font-kalam text-[#2d5da1]">
+                    {onlinePackage ? `🌐 Web Trường: ${onlinePackage.fileName}` : `📄 File Excel: ${uploadedFile?.name}`}
+                  </span>
+                </div>
+                <div className="text-sm font-bold text-[#2d2d2d]/70">
+                  Tổng cộng: <b className="text-[#2e7d32]">{parsedClasses.length} Lớp</b>
+                </div>
+              </div>
 
               {/* Scanned Classes Summary */}
-              {parsedClasses.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-base font-bold text-[#2d2d2d]">
-                      Đã phát hiện {parsedClasses.length} lớp học:
-                    </span>
-                    <span className="text-base font-bold text-[#2e7d32]">
-                      ✓ Tất cả hợp lệ
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-3 rounded-2xl bg-[#fdfbf7] border-2 border-[#2d2d2d] shadow-[3px_3px_0px_0px_#2d2d2d] custom-scrollbar">
-                    {parsedClasses.map((cls) => (
-                      <span
-                        key={cls}
-                        className="px-3 py-1 rounded-xl bg-[#fff9c4] border-2 border-[#2d2d2d] text-[#2d2d2d] text-base font-bold font-patrick shadow-[1.5px_1.5px_0_0_#2d2d2d]"
-                      >
-                        {cls}
-                      </span>
-                    ))}
-                  </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-base font-bold text-[#2d2d2d]">
+                    Danh sách {parsedClasses.length} lớp học:
+                  </span>
+                  <span className="text-base font-bold text-[#2e7d32]">
+                    ✓ Tất cả hợp lệ
+                  </span>
                 </div>
-              )}
+
+                <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-3 rounded-2xl bg-[#fdfbf7] border-2 border-[#2d2d2d] shadow-[3px_3px_0px_0px_#2d2d2d] custom-scrollbar">
+                  {parsedClasses.map((cls) => (
+                    <span
+                      key={cls}
+                      className="px-3 py-1 rounded-xl bg-[#fff9c4] border-2 border-[#2d2d2d] text-[#2d2d2d] text-base font-bold font-patrick shadow-[1.5px_1.5px_0_0_#2d2d2d]"
+                    >
+                      {cls}
+                    </span>
+                  ))}
+                </div>
+              </div>
 
               {/* Action Buttons: Publish or Download JSON */}
               <div className="pt-2 space-y-3">
                 <button
                   type="button"
                   onClick={handlePublishSchoolSchedule}
-                  disabled={isPublishing || parsedClasses.length === 0}
+                  disabled={isPublishing}
                   className="hand-btn hand-btn-red w-full py-4 rounded-2xl font-kalam font-bold text-2xl text-white shadow-[4px_4px_0px_0px_#2d2d2d] disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <Sparkles className="w-6 h-6 stroke-[2.5]" />
@@ -735,8 +786,7 @@ export default function AdminPage() {
                 <button
                   type="button"
                   onClick={handleDownloadJson}
-                  disabled={parsedClasses.length === 0}
-                  className="hand-btn w-full py-3 rounded-2xl font-kalam font-bold text-lg bg-[#fff9c4] hover:bg-[#fff59d] text-[#2d2d2d] border-2 border-[#2d2d2d] shadow-[3px_3px_0px_0px_#2d2d2d] disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="hand-btn w-full py-3.5 rounded-2xl font-kalam font-bold text-xl bg-[#fff9c4] hover:bg-[#fff59d] text-[#2d2d2d] border-2 border-[#2d2d2d] shadow-[3px_3px_0px_0px_#2d2d2d] flex items-center justify-center gap-2"
                 >
                   <Download className="w-5 h-5 text-[#2d5da1]" />
                   <span>Tải File school_schedule.json (Lưu thủ công vào project)</span>
